@@ -1,0 +1,985 @@
+/* =============================================================================
+   CALCOLO COSTO PERSONALE — Foglio di stile
+   Palette: bianco / blu scuro / grigio chiaro — stile gestionale aziendale
+   ============================================================================= */
+
+/* ---------------------------------------------------------------------------
+   1. DESIGN TOKENS
+   --------------------------------------------------------------------------- */
+:root {
+  --blu-scuro: #0b2a4a;
+  --blu-medio: #123a66;
+  --blu-accent: #1a4f8a;
+  --blu-hover: #0e3a6b;
+  --blu-soft: #e8f0f8;
+  --bianco: #ffffff;
+  --grigio-chiaro: #f4f6f9;
+  --grigio-bordo: #d8dee8;
+  --grigio-testo: #5a6577;
+  --grigio-scuro: #2c3544;
+  --verde: #1b7a4a;
+  --verde-bg: #e8f6ee;
+  --arancio: #c45c12;
+  --arancio-bg: #fff1e6;
+  --rosso: #b42318;
+  --ombra: 0 2px 8px rgba(11, 42, 74, 0.08);
+  --ombra-hover: 0 6px 18px rgba(11, 42, 74, 0.12);
+  --raggio: 12px;
+  --raggio-sm: 8px;
+  --font: "Segoe UI", "Helvetica Neue", Arial, sans-serif;
+  --max-width: 1180px;
+  --transizione: 0.2s ease;
+}
+
+/* ---------------------------------------------------------------------------
+   2. RESET / BASE
+   --------------------------------------------------------------------------- */
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+html {
+  font-size: 16px;
+  -webkit-text-size-adjust: 100%;
+}
+
+body {
+  margin: 0;
+  min-height: 100vh;
+  font-family: var(--font);
+  color: var(--grigio-scuro);
+  background:
+    linear-gradient(180deg, var(--grigio-chiaro) 0%, #e9eef5 100%);
+  line-height: 1.5;
+}
+
+h1, h2, h3 {
+  margin: 0;
+  color: var(--blu-scuro);
+  font-weight: 700;
+}
+
+p {
+  margin: 0;
+}
+
+button,
+input {
+  font: inherit;
+}
+
+/* ---------------------------------------------------------------------------
+   3. HEADER
+   --------------------------------------------------------------------------- */
+.app-header {
+  background: linear-gradient(135deg, var(--blu-scuro) 0%, var(--blu-medio) 100%);
+  color: var(--bianco);
+  box-shadow: var(--ombra);
+}
+
+.header-inner {
+  max-width: var(--max-width);
+  margin: 0 auto;
+  padding: 1.25rem 1.5rem;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+}
+
+.brand {
+  display: flex;
+  align-items: center;
+  gap: 0.9rem;
+}
+
+.brand-mark {
+  width: 42px;
+  height: 42px;
+  border-radius: 10px;
+  background:
+    linear-gradient(145deg, #2a6bb0 0%, #0b2a4a 100%);
+  border: 2px solid rgba(255, 255, 255, 0.25);
+  box-shadow: inset 0 0 0 3px rgba(255, 255, 255, 0.08);
+  position: relative;
+  flex-shrink: 0;
+}
+
+.brand-mark::after {
+  content: "";
+  position: absolute;
+  inset: 10px 8px 10px 8px;
+  border-top: 2px solid rgba(255, 255, 255, 0.85);
+  border-bottom: 2px solid rgba(255, 255, 255, 0.55);
+}
+
+.brand-text h1 {
+  color: var(--bianco);
+  font-size: 1.35rem;
+  letter-spacing: 0.01em;
+}
+
+.brand-text p {
+  color: rgba(255, 255, 255, 0.75);
+  font-size: 0.85rem;
+  margin-top: 0.15rem;
+}
+
+.header-meta {
+  font-size: 0.9rem;
+  color: rgba(255, 255, 255, 0.8);
+  white-space: nowrap;
+}
+
+/* ---------------------------------------------------------------------------
+   4. LAYOUT PRINCIPALE + NAV SPA
+   --------------------------------------------------------------------------- */
+.app-nav {
+  background: var(--bianco);
+  border-bottom: 1px solid var(--grigio-bordo);
+  box-shadow: 0 1px 0 rgba(11, 42, 74, 0.04);
+}
+
+.nav-inner {
+  max-width: var(--max-width);
+  margin: 0 auto;
+  padding: 0.65rem 1.5rem 0;
+  display: flex;
+  gap: 0.35rem;
+  flex-wrap: wrap;
+}
+
+.nav-tab {
+  appearance: none;
+  border: none;
+  background: transparent;
+  color: var(--grigio-testo);
+  font-weight: 650;
+  font-size: 0.92rem;
+  padding: 0.7rem 1rem 0.85rem;
+  cursor: pointer;
+  border-bottom: 3px solid transparent;
+  border-radius: 6px 6px 0 0;
+  transition: color var(--transizione), border-color var(--transizione),
+    background var(--transizione);
+}
+
+.nav-tab:hover {
+  color: var(--blu-scuro);
+  background: var(--blu-soft);
+}
+
+.nav-tab:focus-visible {
+  outline: 2px solid var(--blu-accent);
+  outline-offset: 2px;
+}
+
+.nav-tab.active {
+  color: var(--blu-scuro);
+  border-bottom-color: var(--blu-scuro);
+  background: transparent;
+}
+
+.spa-view {
+  display: flex;
+  flex-direction: column;
+  gap: 1.25rem;
+}
+
+.spa-view[hidden] {
+  display: none !important;
+}
+
+.app-main {
+  max-width: var(--max-width);
+  margin: 0 auto;
+  padding: 1.5rem;
+  display: flex;
+  flex-direction: column;
+  gap: 1.25rem;
+}
+
+.layout-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 1.25rem;
+  align-items: start;
+}
+
+/* ---------------------------------------------------------------------------
+   5. CARD GENERICHE
+   --------------------------------------------------------------------------- */
+.card {
+  background: var(--bianco);
+  border: 1px solid var(--grigio-bordo);
+  border-radius: var(--raggio);
+  box-shadow: var(--ombra);
+  padding: 1.4rem 1.5rem 1.5rem;
+}
+
+.card-title {
+  font-size: 1.15rem;
+  margin-bottom: 0.25rem;
+}
+
+.card-subtitle {
+  color: var(--grigio-testo);
+  font-size: 0.9rem;
+  margin-bottom: 1.1rem;
+}
+
+/* ---------------------------------------------------------------------------
+   6. SELEZIONE CONTRATTO
+   --------------------------------------------------------------------------- */
+.contract-toggle {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 0.75rem;
+}
+
+.contract-btn {
+  appearance: none;
+  border: 1.5px solid var(--grigio-bordo);
+  background: var(--grigio-chiaro);
+  border-radius: var(--raggio-sm);
+  padding: 0.95rem 0.85rem;
+  cursor: pointer;
+  text-align: left;
+  transition: border-color var(--transizione), background var(--transizione),
+    box-shadow var(--transizione), transform var(--transizione);
+  color: var(--grigio-scuro);
+}
+
+.contract-btn:hover {
+  border-color: var(--blu-accent);
+  background: var(--blu-soft);
+  transform: translateY(-1px);
+}
+
+.contract-btn:focus-visible {
+  outline: 2px solid var(--blu-accent);
+  outline-offset: 2px;
+}
+
+.contract-btn.active {
+  border-color: var(--blu-scuro);
+  background: var(--blu-scuro);
+  color: var(--bianco);
+  box-shadow: var(--ombra-hover);
+}
+
+.contract-btn-label {
+  display: block;
+  font-weight: 700;
+  font-size: 0.98rem;
+}
+
+.contract-btn-hint {
+  display: block;
+  margin-top: 0.3rem;
+  font-size: 0.78rem;
+  opacity: 0.8;
+}
+
+/* ---------------------------------------------------------------------------
+   7. FORM
+   --------------------------------------------------------------------------- */
+fieldset.field-group {
+  border: 1px solid var(--grigio-bordo);
+  border-radius: var(--raggio-sm);
+  margin: 0 0 1rem;
+  padding: 0.9rem 1rem 1rem;
+  background: var(--grigio-chiaro);
+}
+
+fieldset.field-group legend {
+  padding: 0 0.4rem;
+  font-size: 0.8rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--blu-scuro);
+}
+
+.field {
+  margin-bottom: 0.85rem;
+}
+
+.field:last-child {
+  margin-bottom: 0;
+}
+
+.field-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.85rem;
+}
+
+.field label {
+  display: block;
+  font-size: 0.88rem;
+  font-weight: 600;
+  color: var(--blu-scuro);
+  margin-bottom: 0.35rem;
+}
+
+.field .required {
+  color: var(--rosso);
+}
+
+.field-hint {
+  margin-top: 0.3rem;
+  font-size: 0.78rem;
+  color: var(--grigio-testo);
+}
+
+.input-currency {
+  display: flex;
+  align-items: stretch;
+  border: 1.5px solid var(--grigio-bordo);
+  border-radius: var(--raggio-sm);
+  background: var(--bianco);
+  overflow: hidden;
+  transition: border-color var(--transizione), box-shadow var(--transizione);
+}
+
+.input-currency:focus-within {
+  border-color: var(--blu-accent);
+  box-shadow: 0 0 0 3px rgba(26, 79, 138, 0.15);
+}
+
+.input-currency input {
+  flex: 1;
+  border: none;
+  outline: none;
+  padding: 0.65rem 0.75rem;
+  background: transparent;
+  color: var(--grigio-scuro);
+  min-width: 0;
+}
+
+.input-currency input::-webkit-outer-spin-button,
+.input-currency input::-webkit-inner-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
+
+.input-currency input[type="number"] {
+  -moz-appearance: textfield;
+  appearance: textfield;
+}
+
+.input-currency .suffix {
+  display: flex;
+  align-items: center;
+  padding: 0 0.75rem;
+  background: #eef2f7;
+  color: var(--grigio-testo);
+  font-weight: 600;
+  font-size: 0.88rem;
+  border-left: 1px solid var(--grigio-bordo);
+}
+
+/* L'attributo HTML [hidden] deve vincere su display:flex/grid delle card */
+[hidden] {
+  display: none !important;
+}
+
+/* ---------------------------------------------------------------------------
+   8. PULSANTI AZIONE
+   --------------------------------------------------------------------------- */
+.actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.65rem;
+  margin-top: 0.25rem;
+}
+
+.btn {
+  appearance: none;
+  border: none;
+  border-radius: var(--raggio-sm);
+  padding: 0.72rem 1.15rem;
+  font-weight: 650;
+  font-size: 0.92rem;
+  cursor: pointer;
+  transition: background var(--transizione), color var(--transizione),
+    border-color var(--transizione), box-shadow var(--transizione),
+    opacity var(--transizione), transform var(--transizione);
+}
+
+.btn:focus-visible {
+  outline: 2px solid var(--blu-accent);
+  outline-offset: 2px;
+}
+
+.btn:active:not(:disabled) {
+  transform: translateY(1px);
+}
+
+.btn:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+.btn-primary {
+  background: var(--blu-scuro);
+  color: var(--bianco);
+  box-shadow: 0 2px 6px rgba(11, 42, 74, 0.25);
+}
+
+.btn-primary:hover:not(:disabled) {
+  background: var(--blu-hover);
+}
+
+.btn-secondary {
+  background: #e2e8f0;
+  color: var(--blu-scuro);
+}
+
+.btn-secondary:hover:not(:disabled) {
+  background: #d3dce8;
+}
+
+.btn-outline {
+  background: var(--bianco);
+  color: var(--blu-scuro);
+  border: 1.5px solid var(--blu-scuro);
+}
+
+.btn-outline:hover:not(:disabled) {
+  background: var(--blu-soft);
+}
+
+/* ---------------------------------------------------------------------------
+   9. RISULTATI — KPI + TABELLA
+   --------------------------------------------------------------------------- */
+.empty-state {
+  text-align: center;
+  padding: 2.5rem 1rem;
+  color: var(--grigio-testo);
+}
+
+.empty-icon {
+  width: 56px;
+  height: 56px;
+  margin: 0 auto 1rem;
+  border-radius: 50%;
+  background: var(--blu-soft);
+  border: 2px dashed var(--blu-accent);
+  position: relative;
+}
+
+.empty-icon::before,
+.empty-icon::after {
+  content: "";
+  position: absolute;
+  background: var(--blu-accent);
+  border-radius: 2px;
+}
+
+.empty-icon::before {
+  width: 18px;
+  height: 2px;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+}
+
+.empty-icon::after {
+  width: 2px;
+  height: 18px;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+}
+
+.empty-hint {
+  margin-top: 0.4rem;
+  font-size: 0.88rem;
+}
+
+.results-wrap {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.kpi-row {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 0.65rem;
+}
+
+.kpi {
+  border-radius: var(--raggio-sm);
+  padding: 0.85rem 0.9rem;
+  border: 1px solid var(--grigio-bordo);
+  background: var(--grigio-chiaro);
+}
+
+.kpi-label {
+  display: block;
+  font-size: 0.75rem;
+  font-weight: 650;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  color: var(--grigio-testo);
+  margin-bottom: 0.25rem;
+}
+
+.kpi-value {
+  display: block;
+  font-size: 1.05rem;
+  font-weight: 750;
+  color: var(--blu-scuro);
+  word-break: break-word;
+}
+
+/* Margine evidenziato in arancione */
+.kpi-margin {
+  background: var(--arancio-bg);
+  border-color: #f0c9a0;
+}
+
+.kpi-margin .kpi-value {
+  color: var(--arancio);
+}
+
+/* Totale / prezzo finale evidenziati in verde */
+.kpi-final {
+  background: var(--verde-bg);
+  border-color: #a8d9bc;
+}
+
+.kpi-final .kpi-value {
+  color: var(--verde);
+}
+
+.table-scroll {
+  overflow-x: auto;
+  border: 1px solid var(--grigio-bordo);
+  border-radius: var(--raggio-sm);
+}
+
+.results-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.92rem;
+}
+
+.results-table th,
+.results-table td {
+  padding: 0.7rem 0.9rem;
+  text-align: left;
+  border-bottom: 1px solid var(--grigio-bordo);
+}
+
+.results-table th {
+  background: var(--blu-scuro);
+  color: var(--bianco);
+  font-weight: 650;
+  font-size: 0.82rem;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+}
+
+.results-table tbody tr:nth-child(even) {
+  background: var(--grigio-chiaro);
+}
+
+.results-table tbody tr:hover {
+  background: var(--blu-soft);
+}
+
+.results-table .col-amount,
+.results-table td.amount {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+  font-weight: 600;
+}
+
+/* Righe speciali nella tabella */
+.results-table tr.row-margin td {
+  background: var(--arancio-bg);
+  color: var(--arancio);
+  font-weight: 700;
+}
+
+.results-table tr.row-final td {
+  background: var(--verde-bg);
+  color: var(--verde);
+  font-weight: 750;
+  border-bottom: none;
+}
+
+.results-table tr.row-section td {
+  background: #edf1f6;
+  color: var(--blu-scuro);
+  font-weight: 700;
+  font-size: 0.8rem;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+}
+
+/* ---------------------------------------------------------------------------
+   10. PASSAGGI DI CALCOLO
+   --------------------------------------------------------------------------- */
+.steps-panel {
+  border: 1px solid var(--grigio-bordo);
+  border-radius: var(--raggio-sm);
+  background: var(--grigio-chiaro);
+  padding: 0.4rem 0.9rem 0.4rem;
+}
+
+.steps-panel summary {
+  cursor: pointer;
+  font-weight: 650;
+  color: var(--blu-scuro);
+  padding: 0.55rem 0;
+  list-style: none;
+}
+
+.steps-panel summary::-webkit-details-marker {
+  display: none;
+}
+
+.steps-panel summary::before {
+  content: "▸ ";
+  color: var(--blu-accent);
+}
+
+.steps-panel[open] summary::before {
+  content: "▾ ";
+}
+
+.steps-list {
+  margin: 0 0 0.85rem;
+  padding-left: 1.2rem;
+  color: var(--grigio-testo);
+  font-size: 0.88rem;
+}
+
+.steps-list li {
+  margin-bottom: 0.45rem;
+}
+
+.steps-list code {
+  font-family: Consolas, "Courier New", monospace;
+  background: var(--bianco);
+  border: 1px solid var(--grigio-bordo);
+  border-radius: 4px;
+  padding: 0.1rem 0.35rem;
+  font-size: 0.84rem;
+  color: var(--blu-scuro);
+}
+
+/* ---------------------------------------------------------------------------
+   10b. OVERTIME — DATI IMPORTATI, RADIO, KPI
+   --------------------------------------------------------------------------- */
+.imported-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 0.65rem;
+}
+
+.imported-item {
+  background: var(--grigio-chiaro);
+  border: 1px solid var(--grigio-bordo);
+  border-radius: var(--raggio-sm);
+  padding: 0.75rem 0.85rem;
+}
+
+.imported-label {
+  display: block;
+  font-size: 0.72rem;
+  font-weight: 650;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  color: var(--grigio-testo);
+  margin-bottom: 0.25rem;
+}
+
+.imported-value {
+  display: block;
+  font-weight: 700;
+  color: var(--blu-scuro);
+  font-variant-numeric: tabular-nums;
+  word-break: break-word;
+}
+
+.radio-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 0.5rem;
+}
+
+.radio-grid-col {
+  grid-template-columns: 1fr;
+  margin-bottom: 0.85rem;
+}
+
+.radio-chip {
+  display: flex;
+  align-items: center;
+  gap: 0.45rem;
+  padding: 0.65rem 0.75rem;
+  border: 1.5px solid var(--grigio-bordo);
+  border-radius: var(--raggio-sm);
+  background: var(--bianco);
+  cursor: pointer;
+  font-size: 0.9rem;
+  font-weight: 600;
+  color: var(--blu-scuro);
+  transition: border-color var(--transizione), background var(--transizione);
+}
+
+.radio-chip:hover {
+  border-color: var(--blu-accent);
+  background: var(--blu-soft);
+}
+
+.radio-chip:has(input:checked) {
+  border-color: var(--blu-scuro);
+  background: var(--blu-soft);
+  box-shadow: inset 0 0 0 1px var(--blu-scuro);
+}
+
+.radio-chip input {
+  accent-color: var(--blu-scuro);
+  margin: 0;
+}
+
+.kpi-row-ot {
+  margin-bottom: 0.15rem;
+}
+
+/* ---------------------------------------------------------------------------
+   10c. OVERTIME — SPACING / LAYOUT CARD
+   --------------------------------------------------------------------------- */
+.ot-stack {
+  display: flex;
+  flex-direction: column;
+  gap: 1.35rem;
+  width: 100%;
+}
+
+#formOvertime.ot-stack {
+  margin: 0;
+}
+
+.card-compact {
+  padding: 1rem 1.35rem;
+}
+
+.card-compact .card-subtitle {
+  margin-bottom: 0;
+}
+
+.ot-common-row {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 1.25rem 2rem;
+  flex-wrap: wrap;
+}
+
+.ot-common-text {
+  flex: 1 1 240px;
+  min-width: 0;
+}
+
+.ot-common-field {
+  flex: 0 1 260px;
+  margin-bottom: 0;
+  width: 100%;
+  max-width: 280px;
+}
+
+.ot-config-grid {
+  align-items: stretch;
+}
+
+.ot-panel {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+}
+
+.ot-panel .field-group {
+  margin-bottom: 1rem;
+}
+
+.ot-panel .field-group-last {
+  margin-bottom: 0;
+  margin-top: auto;
+}
+
+.ot-actions {
+  margin: 0;
+  padding: 1rem 1.25rem;
+  background: var(--bianco);
+  border: 1px solid var(--grigio-bordo);
+  border-radius: var(--raggio);
+  box-shadow: var(--ombra);
+}
+
+@media (max-width: 720px) {
+  .ot-stack {
+    gap: 1.1rem;
+  }
+
+  .ot-common-row {
+    align-items: stretch;
+  }
+
+  .ot-common-field {
+    max-width: none;
+    flex-basis: 100%;
+  }
+
+  .ot-actions {
+    flex-direction: column;
+  }
+
+  .ot-actions .btn {
+    width: 100%;
+  }
+}
+
+@media (max-width: 720px) {
+  .imported-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .radio-grid {
+    grid-template-columns: 1fr 1fr;
+  }
+
+  .nav-inner {
+    padding-left: 1rem;
+    padding-right: 1rem;
+  }
+
+  .nav-tab {
+    flex: 1;
+    text-align: center;
+    font-size: 0.85rem;
+    padding: 0.65rem 0.5rem 0.75rem;
+  }
+}
+
+/* ---------------------------------------------------------------------------
+   11. FOOTER
+   --------------------------------------------------------------------------- */
+.app-footer {
+  max-width: var(--max-width);
+  margin: 0 auto;
+  padding: 0.5rem 1.5rem 1.75rem;
+  text-align: center;
+  color: var(--grigio-testo);
+  font-size: 0.82rem;
+}
+
+.app-footer p {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  align-items: baseline;
+  gap: 0.35rem 0.75rem;
+}
+
+.footer-credit {
+  font-size: 0.72rem;
+  color: #8a94a6;
+  letter-spacing: 0.01em;
+}
+
+.footer-credit::before {
+  content: "·";
+  margin-right: 0.75rem;
+  color: #b0b8c6;
+}
+
+/* ---------------------------------------------------------------------------
+   12. RESPONSIVE
+   --------------------------------------------------------------------------- */
+@media (max-width: 960px) {
+  .layout-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .imported-grid {
+    grid-template-columns: 1fr 1fr;
+  }
+}
+
+@media (max-width: 720px) {
+  .header-inner {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+  .contract-toggle {
+    grid-template-columns: 1fr;
+  }
+
+  .field-row {
+    grid-template-columns: 1fr;
+  }
+
+  .kpi-row {
+    grid-template-columns: 1fr;
+  }
+
+  .actions {
+    flex-direction: column;
+  }
+
+  .actions .btn {
+    width: 100%;
+  }
+
+  .brand-text h1 {
+    font-size: 1.15rem;
+  }
+}
+
+@media (max-width: 420px) {
+  .app-main {
+    padding: 1rem;
+  }
+
+  .card {
+    padding: 1.1rem;
+  }
+}
+
+/* ---------------------------------------------------------------------------
+   13. STAMPA (opzionale)
+   --------------------------------------------------------------------------- */
+@media print {
+  body {
+    background: white;
+  }
+
+  .app-header,
+  .actions,
+  .contract-toggle,
+  .app-footer {
+    /* Mantieni intestazione, nascondi controlli interattivi inutili */
+  }
+
+  .actions,
+  .contract-btn:not(.active) {
+    display: none !important;
+  }
+
+  .card {
+    box-shadow: none;
+    break-inside: avoid;
+  }
+}

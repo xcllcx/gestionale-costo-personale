@@ -1,0 +1,10 @@
+# Sistema operativo / editor
+.DS_Store
+Thumbs.db
+Desktop.ini
+.vscode/
+.idea/
+*.log
+
+# Backup locale REV0 (resta sul PC; non serve online)
+Backup_REV0/

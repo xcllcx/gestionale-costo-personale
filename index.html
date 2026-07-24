@@ -1,0 +1,483 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="description" content="Gestionale professionale per il calcolo del costo del personale e overtime" />
+  <title>Calcolo Costo Personale</title>
+  <!-- Foglio di stile principale -->
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <!-- ============================================================
+       HEADER AZIENDALE
+       ============================================================ -->
+  <header class="app-header">
+    <div class="header-inner">
+      <div class="brand">
+        <div class="brand-mark" aria-hidden="true"></div>
+        <div class="brand-text">
+          <h1>Calcolo Costo Personale</h1>
+          <p>Gestionale costi &amp; pricing risorse</p>
+        </div>
+      </div>
+      <div class="header-meta">
+        <span id="dataCorrente"></span>
+      </div>
+    </div>
+  </header>
+
+  <!-- ============================================================
+       NAVIGAZIONE SPA (TAB) — nessun reload di pagina
+       ============================================================ -->
+  <nav class="app-nav" aria-label="Sezioni applicazione">
+    <div class="nav-inner">
+      <button type="button" class="nav-tab active" data-view="costo" id="tabCosto" aria-pressed="true">
+        Calcolo costo personale
+      </button>
+      <button type="button" class="nav-tab" data-view="overtime" id="tabOvertime" aria-pressed="false">
+        Calcolo overtime
+      </button>
+    </div>
+  </nav>
+
+  <main class="app-main">
+    <!-- ==========================================================
+         VIEW 1 — CALCOLO COSTO PERSONALE (REV0, invariata nella logica)
+         ========================================================== -->
+    <div id="viewCosto" class="spa-view" data-view-panel="costo">
+
+      <!-- SELEZIONE TIPO CONTRATTO -->
+      <section class="card contract-card" aria-labelledby="titolo-contratto">
+        <h2 id="titolo-contratto" class="card-title">Tipo di contratto</h2>
+        <p class="card-subtitle">Seleziona la modalità di calcolo. I parametri e le formule si aggiornano automaticamente.</p>
+
+        <div class="contract-toggle" role="group" aria-label="Tipologia contratto">
+          <button type="button" class="contract-btn active" data-mode="italia" id="btnItalia">
+            <span class="contract-btn-label">Italia</span>
+            <span class="contract-btn-hint">Trasferta 1.394,40 €</span>
+          </button>
+          <button type="button" class="contract-btn" data-mode="europa" id="btnEuropa">
+            <span class="contract-btn-label">Europa</span>
+            <span class="contract-btn-hint">Trasferta 2.324,10 €</span>
+          </button>
+          <button type="button" class="contract-btn" data-mode="europa-base" id="btnEuropaBase">
+            <span class="contract-btn-label">Estero</span>
+            <span class="contract-btn-hint">Quota base × moltiplicatore</span>
+          </button>
+        </div>
+      </section>
+
+      <!-- LAYOUT A DUE COLONNE: INPUT + RISULTATI -->
+      <div class="layout-grid">
+        <!-- FORM INPUT -->
+        <section class="card form-card" aria-labelledby="titolo-parametri">
+          <h2 id="titolo-parametri" class="card-title">Parametri di calcolo</h2>
+          <p class="card-subtitle">Tutti i valori predefiniti sono modificabili.</p>
+
+          <form id="formCalcolo" autocomplete="off" novalidate>
+            <fieldset class="field-group">
+              <legend>Compenso</legend>
+
+              <div class="field">
+                <label for="netto">
+                  <span id="labelNetto">Netto mensile</span>
+                  <span class="required">*</span>
+                </label>
+                <div class="input-currency">
+                  <input type="number" id="netto" name="netto" min="0" step="0.01" placeholder="0,00" required />
+                  <span class="suffix">€</span>
+                </div>
+              </div>
+
+              <div class="field" id="fieldQuotaBase" hidden>
+                <label for="quotaBase">
+                  Quota Base Assunzione
+                </label>
+                <div class="input-currency">
+                  <input type="number" id="quotaBase" name="quotaBase" min="0" step="0.01" value="2000" />
+                  <span class="suffix">€</span>
+                </div>
+                <p class="field-hint">Parte tassata da moltiplicare. La differenza netto − quota è esentasse.</p>
+              </div>
+            </fieldset>
+
+            <fieldset class="field-group">
+              <legend>Indennità esentasse</legend>
+
+              <div class="field">
+                <label for="pocketMoney">Pocket Money</label>
+                <div class="input-currency">
+                  <input type="number" id="pocketMoney" name="pocketMoney" min="0" step="0.01" value="0" />
+                  <span class="suffix">€</span>
+                </div>
+              </div>
+
+              <div class="field">
+                <label for="rimborsoAffitto">Rimborso Affitto</label>
+                <div class="input-currency">
+                  <input type="number" id="rimborsoAffitto" name="rimborsoAffitto" min="0" step="0.01" value="0" />
+                  <span class="suffix">€</span>
+                </div>
+              </div>
+
+              <div class="field">
+                <label for="rimborsoAuto">Rimborso Auto</label>
+                <div class="input-currency">
+                  <input type="number" id="rimborsoAuto" name="rimborsoAuto" min="0" step="0.01" value="0" />
+                  <span class="suffix">€</span>
+                </div>
+              </div>
+
+              <div class="field" id="fieldTrasferta">
+                <label for="trasferta" id="labelTrasferta">Trasferta Italia</label>
+                <div class="input-currency">
+                  <input type="number" id="trasferta" name="trasferta" min="0" step="0.01" value="1394.40" />
+                  <span class="suffix">€</span>
+                </div>
+                <p class="field-hint">Importo esentasse. Non viene moltiplicato.</p>
+              </div>
+            </fieldset>
+
+            <fieldset class="field-group">
+              <legend>Parametri aziendali</legend>
+
+              <div class="field-row">
+                <div class="field">
+                  <label for="marginePerc">Margine %</label>
+                  <div class="input-currency">
+                    <input type="number" id="marginePerc" name="marginePerc" min="0" step="0.01" value="30" />
+                    <span class="suffix">%</span>
+                  </div>
+                </div>
+
+                <div class="field">
+                  <label for="moltiplicatore">Moltiplicatore costo lavoro</label>
+                  <div class="input-currency">
+                    <input type="number" id="moltiplicatore" name="moltiplicatore" min="0" step="0.01" value="2.6" />
+                    <span class="suffix">×</span>
+                  </div>
+                </div>
+              </div>
+
+              <div class="field">
+                <label for="costiStruttura">Costi struttura</label>
+                <div class="input-currency">
+                  <input type="number" id="costiStruttura" name="costiStruttura" min="0" step="0.01" value="1500" />
+                  <span class="suffix">€</span>
+                </div>
+              </div>
+            </fieldset>
+
+            <div class="actions">
+              <button type="submit" class="btn btn-primary" id="btnCalcola">
+                Calcola
+              </button>
+              <button type="button" class="btn btn-secondary" id="btnReset">
+                Reset
+              </button>
+              <button type="button" class="btn btn-outline" id="btnEsportaWord" disabled>
+                Esporta Word
+              </button>
+            </div>
+          </form>
+        </section>
+
+        <!-- RISULTATI -->
+        <section class="card results-card" aria-labelledby="titolo-risultati">
+          <h2 id="titolo-risultati" class="card-title">Riepilogo costi</h2>
+          <p class="card-subtitle" id="sottotitoloRisultati">Compila i parametri e premi Calcola.</p>
+
+          <div id="statoVuoto" class="empty-state">
+            <div class="empty-icon" aria-hidden="true"></div>
+            <p>Nessun calcolo effettuato.</p>
+            <p class="empty-hint">Inserisci il netto mensile e clicca <strong>Calcola</strong>.</p>
+          </div>
+
+          <div id="contenitoreRisultati" class="results-wrap" hidden>
+            <div class="kpi-row">
+              <div class="kpi kpi-cost">
+                <span class="kpi-label">Totale costo</span>
+                <span class="kpi-value" id="kpiTotaleCosto">—</span>
+              </div>
+              <div class="kpi kpi-margin">
+                <span class="kpi-label">Margine</span>
+                <span class="kpi-value" id="kpiMargine">—</span>
+              </div>
+              <div class="kpi kpi-final">
+                <span class="kpi-label">Prezzo finale</span>
+                <span class="kpi-value" id="kpiPrezzoFinale">—</span>
+              </div>
+            </div>
+
+            <div class="table-scroll">
+              <table class="results-table" id="tabellaRisultati">
+                <thead>
+                  <tr>
+                    <th scope="col">Voce</th>
+                    <th scope="col" class="col-amount">Importo</th>
+                  </tr>
+                </thead>
+                <tbody id="corpoTabella">
+                  <!-- Popolato dinamicamente da script.js -->
+                </tbody>
+              </table>
+            </div>
+
+            <details class="steps-panel" id="pannelloPassaggi">
+              <summary>Dettaglio passaggi di calcolo</summary>
+              <ol id="listaPassaggi" class="steps-list"></ol>
+            </details>
+          </div>
+        </section>
+      </div>
+    </div>
+
+    <!-- ==========================================================
+         VIEW 2 — CALCOLO OVERTIME (nuova, indipendente dalla REV0)
+         ========================================================== -->
+    <div id="viewOvertime" class="spa-view" data-view-panel="overtime" hidden>
+
+      <!-- Messaggio se manca il calcolo costo -->
+      <section class="card" id="otMissingCard" hidden>
+        <h2 class="card-title">Dati non disponibili</h2>
+        <p class="card-subtitle">
+          Per calcolare l'overtime è necessario prima eseguire un calcolo nella scheda
+          <strong>Calcolo costo personale</strong>.
+        </p>
+        <div class="actions">
+          <button type="button" class="btn btn-primary" id="btnVaiACosto">Vai al calcolo costo</button>
+        </div>
+      </section>
+
+      <div id="otContent" class="ot-stack" hidden>
+        <!-- DATI IMPORTATI (sola lettura da currentCalculation) -->
+        <section class="card" aria-labelledby="titolo-ot-importati">
+          <h2 id="titolo-ot-importati" class="card-title">Dati importati</h2>
+          <p class="card-subtitle">Valori provenienti dall'ultimo calcolo costo (sola lettura).</p>
+
+          <div class="imported-grid" id="otImportedGrid">
+            <div class="imported-item">
+              <span class="imported-label">Tipo contratto</span>
+              <span class="imported-value" id="otImpTipo">—</span>
+            </div>
+            <div class="imported-item">
+              <span class="imported-label">Netto</span>
+              <span class="imported-value" id="otImpNetto">—</span>
+            </div>
+            <div class="imported-item">
+              <span class="imported-label">Prezzo finale</span>
+              <span class="imported-value" id="otImpPrezzoFinale">—</span>
+            </div>
+            <div class="imported-item">
+              <span class="imported-label">Rate 26</span>
+              <span class="imported-value" id="otImpRate26">—</span>
+            </div>
+            <div class="imported-item">
+              <span class="imported-label">Rate 30</span>
+              <span class="imported-value" id="otImpRate30">—</span>
+            </div>
+            <div class="imported-item">
+              <span class="imported-label">Rate 21,7</span>
+              <span class="imported-value" id="otImpRate217">—</span>
+            </div>
+          </div>
+        </section>
+
+        <form id="formOvertime" class="ot-stack" autocomplete="off" novalidate>
+          <!-- Parametro condiviso: ore giornaliere -->
+          <section class="card card-compact">
+            <div class="ot-common-row">
+              <div class="ot-common-text">
+                <h2 class="card-title">Parametro comune</h2>
+                <p class="card-subtitle">Ore giornaliere usate da tecnico e cliente. Nessuna moltiplicazione per ore previste.</p>
+              </div>
+              <div class="field ot-common-field">
+                <label for="otOreLavorative">Ore lavorative giornaliere</label>
+                <div class="input-currency">
+                  <input type="number" id="otOreLavorative" name="otOreLavorative" min="0.01" step="0.01" value="10" />
+                  <span class="suffix">h</span>
+                </div>
+              </div>
+            </div>
+          </section>
+
+          <div class="layout-grid ot-config-grid">
+            <!-- ========== OVERTIME TECNICO (indipendente) ========== -->
+            <section class="card ot-panel" aria-labelledby="titolo-ot-tecnico">
+              <h2 id="titolo-ot-tecnico" class="card-title">Overtime tecnico</h2>
+              <p class="card-subtitle">Costo orario riconosciuto al tecnico (€/ora).</p>
+
+              <fieldset class="field-group">
+                <legend>Come viene riconosciuto l'overtime al tecnico?</legend>
+                <div class="radio-grid radio-grid-col" role="radiogroup" aria-label="Metodo overtime tecnico">
+                  <label class="radio-chip">
+                    <input type="radio" name="otMetodoTecnico" value="working" checked />
+                    <span>Working days</span>
+                  </label>
+                  <label class="radio-chip">
+                    <input type="radio" name="otMetodoTecnico" value="calendar" />
+                    <span>Calendar days</span>
+                  </label>
+                </div>
+
+                <div class="field" id="fieldGiorniCalendarTecnico" hidden>
+                  <label for="otGiorniCalendarTecnico">Numero giorni calendar (tecnico)</label>
+                  <div class="input-currency">
+                    <input type="number" id="otGiorniCalendarTecnico" name="otGiorniCalendarTecnico" min="1" step="1" value="30" />
+                    <span class="suffix">gg</span>
+                  </div>
+                  <p class="field-hint">Default 30. Formula: (Netto ÷ giorni) ÷ ore lavorative.</p>
+                </div>
+              </fieldset>
+
+              <fieldset class="field-group field-group-last">
+                <legend>Maggiorazione tecnica</legend>
+                <div class="radio-grid" role="radiogroup" aria-label="Maggiorazione tecnico">
+                  <label class="radio-chip">
+                    <input type="radio" name="otMaggTecnico" value="1" checked />
+                    <span>Base</span>
+                  </label>
+                  <label class="radio-chip">
+                    <input type="radio" name="otMaggTecnico" value="1.15" />
+                    <span>+15%</span>
+                  </label>
+                  <label class="radio-chip">
+                    <input type="radio" name="otMaggTecnico" value="1.25" />
+                    <span>+25%</span>
+                  </label>
+                  <label class="radio-chip">
+                    <input type="radio" name="otMaggTecnico" value="1.50" />
+                    <span>+50%</span>
+                  </label>
+                </div>
+              </fieldset>
+            </section>
+
+            <!-- ========== OVERTIME CLIENTE (indipendente) ========== -->
+            <section class="card ot-panel" aria-labelledby="titolo-ot-cliente">
+              <h2 id="titolo-ot-cliente" class="card-title">Overtime cliente</h2>
+              <p class="card-subtitle">Prezzo orario venduto al cliente (€/ora).</p>
+
+              <fieldset class="field-group">
+                <legend>Come viene venduto l'overtime al cliente?</legend>
+                <div class="radio-grid radio-grid-col" role="radiogroup" aria-label="Metodo overtime cliente">
+                  <label class="radio-chip">
+                    <input type="radio" name="otMetodoCliente" value="working" checked />
+                    <span>Working days</span>
+                  </label>
+                  <label class="radio-chip">
+                    <input type="radio" name="otMetodoCliente" value="calendar" />
+                    <span>Calendar days</span>
+                  </label>
+                </div>
+
+                <div class="field" id="fieldGiorniCalendarCliente" hidden>
+                  <label for="otGiorniCalendarCliente">Numero giorni calendar (cliente)</label>
+                  <div class="input-currency">
+                    <input type="number" id="otGiorniCalendarCliente" name="otGiorniCalendarCliente" min="1" step="1" value="30" />
+                    <span class="suffix">gg</span>
+                  </div>
+                  <p class="field-hint">Default 30. Conversione: getEquivalent26Rate(Rate30, giorni) ÷ ore.</p>
+                </div>
+              </fieldset>
+
+              <fieldset class="field-group field-group-last">
+                <legend>Maggiorazione cliente</legend>
+                <div class="radio-grid" role="radiogroup" aria-label="Maggiorazione cliente">
+                  <label class="radio-chip">
+                    <input type="radio" name="otMaggCliente" value="1" checked />
+                    <span>Base</span>
+                  </label>
+                  <label class="radio-chip">
+                    <input type="radio" name="otMaggCliente" value="1.15" />
+                    <span>+15%</span>
+                  </label>
+                  <label class="radio-chip">
+                    <input type="radio" name="otMaggCliente" value="1.25" />
+                    <span>+25%</span>
+                  </label>
+                  <label class="radio-chip">
+                    <input type="radio" name="otMaggCliente" value="1.50" />
+                    <span>+50%</span>
+                  </label>
+                </div>
+              </fieldset>
+            </section>
+          </div>
+
+          <div class="actions ot-actions">
+            <button type="submit" class="btn btn-primary" id="btnCalcolaOvertime">
+              Calcola overtime
+            </button>
+            <button type="button" class="btn btn-secondary" id="btnResetOvertime">
+              Reset overtime
+            </button>
+            <button type="button" class="btn btn-outline" id="btnEsportaWordOt" disabled>
+              Esporta Word
+            </button>
+          </div>
+        </form>
+
+        <!-- RISULTATO OVERTIME -->
+        <section class="card" aria-labelledby="titolo-ot-risultato">
+          <h2 id="titolo-ot-risultato" class="card-title">Risultato</h2>
+          <p class="card-subtitle" id="otSottotitoloRisultati">Configura tecnico e cliente, poi premi Calcola overtime.</p>
+
+          <div id="otStatoVuoto" class="empty-state">
+            <div class="empty-icon" aria-hidden="true"></div>
+            <p>Nessun overtime calcolato.</p>
+            <p class="empty-hint">Il risultato è sempre in <strong>€/ora</strong> (nessun totale mensile).</p>
+          </div>
+
+          <div id="otContenitoreRisultati" class="results-wrap" hidden>
+            <div class="kpi-row kpi-row-ot">
+              <div class="kpi kpi-cost">
+                <span class="kpi-label">Costo tecnico</span>
+                <span class="kpi-value" id="kpiOtTecnico">—</span>
+              </div>
+              <div class="kpi kpi-final">
+                <span class="kpi-label">Prezzo cliente</span>
+                <span class="kpi-value" id="kpiOtCliente">—</span>
+              </div>
+              <div class="kpi kpi-margin">
+                <span class="kpi-label">Margine orario</span>
+                <span class="kpi-value" id="kpiOtMargine">—</span>
+              </div>
+            </div>
+
+            <div class="table-scroll">
+              <table class="results-table" id="tabellaOvertime">
+                <thead>
+                  <tr>
+                    <th scope="col">Voce</th>
+                    <th scope="col" class="col-amount">Valore</th>
+                  </tr>
+                </thead>
+                <tbody id="corpoTabellaOvertime"></tbody>
+              </table>
+            </div>
+
+            <details class="steps-panel" id="pannelloPassaggiOt" open>
+              <summary>Dettaglio passaggi di calcolo overtime</summary>
+              <ol id="listaPassaggiOt" class="steps-list"></ol>
+            </details>
+          </div>
+        </section>
+      </div>
+    </div>
+  </main>
+
+  <footer class="app-footer">
+    <p>
+      Calcolo Costo Personale — applicazione locale, senza server e senza database.
+      <span class="footer-credit">Crafted with Cursor by Lorenzo Coluccelli</span>
+    </p>
+  </footer>
+
+  <!-- Libreria docx (browser, senza Node.js) per export .docx -->
+  <script src="lib/docx.min.js"></script>
+  <!-- Logica applicativa -->
+  <script src="script.js"></script>
+</body>
+</html>
