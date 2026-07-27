@@ -879,9 +879,14 @@ function bindUi(cv) {
       apiKeyRevealed = false;
       renderAiSettings({ reveal: false });
       updateActionButtons(cv);
-      // Health solo in Secure e solo se non host statico
-      if (mode === AI_MODE_SECURE && !isStaticHostWithoutBackend()) {
-        refreshBackendHealth(cv);
+      if (mode === AI_MODE_SECURE) {
+        if (isStaticHostWithoutBackend()) {
+          applyStaticHostBackendState();
+          renderAiSettings({ reveal: false });
+          updateActionButtons(cv);
+        } else {
+          refreshBackendHealth(cv);
+        }
       }
     });
   });
