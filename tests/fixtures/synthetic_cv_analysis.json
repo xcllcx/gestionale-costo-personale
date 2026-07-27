@@ -1,0 +1,43 @@
+{
+  "sourceLanguage": "it",
+  "outputLanguage": "it",
+  "primaryInformation": {
+    "fullName": "Mario Rossi",
+    "skill": "Mechanical Technician",
+    "yearOfBirth": "1990",
+    "nationality": "Italian",
+    "languages": ["Italian", "English"],
+    "address": ""
+  },
+  "summary": "",
+  "education": [
+    {
+      "period": "2010 – 2013",
+      "institution": "Istituto Tecnico Sample",
+      "qualification": "Diploma di Perito Meccanico",
+      "location": "Milano",
+      "details": ""
+    }
+  ],
+  "experience": [
+    {
+      "period": "2020 – Present",
+      "company": "Sample Engineering S.p.A.",
+      "client": "",
+      "project": "",
+      "position": "Mechanical Technician",
+      "location": "Milano",
+      "description": [
+        "Manutenzione impianti industriali",
+        "Supporto turnaround"
+      ]
+    }
+  ],
+  "otherInformation": [
+    {
+      "label": "Autorizzazione trattamento dati",
+      "content": "Autorizzo il trattamento dei dati personali ai sensi della normativa vigente."
+    }
+  ],
+  "warnings": []
+}

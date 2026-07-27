@@ -5,6 +5,33 @@ Desktop.ini
 .vscode/
 .idea/
 *.log
+node_modules/
 
-# Backup locale REV0 (resta sul PC; non serve online)
+# Segreti — MAI commitare
+.env
+.env.local
+.env.*.local
+
+# Backup locali (solo PC — non pubblicare su GitHub)
 Backup_REV0/
+BACKUP_REV01_STABLE/
+BACKUP_BEFORE_APPSTATE/
+BACKUP_BEFORE_DRAFT_UI/
+BACKUP_BEFORE_DRAFT_WORD/
+BACKUP_BEFORE_REV02_3/
+BACKUP_REV02_STABLE/
+BACKUP_BEFORE_REV03_FASE_A/
+BACKUP_BEFORE_REV03_B1/
+BACKUP_BEFORE_REV03_B2/
+BACKUP_BEFORE_REV03_QP01/
+BACKUP_BEFORE_REV03_QP02/
+BACKUP_BEFORE_REV03_QP03/
+BACKUP_BEFORE_REV03_UI_POLISH/
+BACKUP_BEFORE_REV03_STABLE/
+BACKUP_BEFORE_REV03_RC/
+tmp_cv_fixtures/
+
+# Output locali / cache
+coverage/
+.cache/
+*.tmp

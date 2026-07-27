@@ -1,0 +1,21 @@
+{
+  "name": "gestionale-costo-personale",
+  "version": "3.0.0-shared",
+  "private": true,
+  "description": "Managing Platform — Recruitment & Pricing Suite (REV03_SHARED — GitHub Pages + local AI)",
+  "type": "module",
+  "engines": {
+    "node": ">=20"
+  },
+  "scripts": {
+    "start": "node server/src/index.js",
+    "staging": "node server/src/index.js",
+    "test": "node --test tests/smoke/*.test.mjs",
+    "test:unit": "node --test tests/smoke/*.test.mjs",
+    "ci": "npm test"
+  },
+  "dependencies": {
+    "dotenv": "^16.4.7",
+    "express": "^4.21.2"
+  }
+}

@@ -1,0 +1,27 @@
+name: CI — REV03 Release Candidate
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  smoke:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+
+      - name: Install dependencies
+        run: npm install
+
+      - name: Smoke tests (no OpenAI key required)
+        run: npm test
+        env:
+          # Nessun segreto reale: i test AI usano mock
+          OPENAI_API_KEY: ""

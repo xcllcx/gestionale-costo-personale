@@ -1,0 +1,32 @@
+# CHANGELOG
+
+## REV03_SHARED (2026-07-27)
+
+### Added
+- Pubblicazione GitHub Pages della suite statica REV03
+- Fallback sicuro CV Manager su Pages (nessun health check di rete; AI solo locale)
+- Smoke test modalità GitHub Pages simulata
+
+### Notes
+- Pages: Costo, Overtime, Draft Tecnico
+- Locale (`npm run staging`): CV Manager AI completo
+- Non è “production backend ready”
+
+## REV03_RELEASE_CANDIDATE (2026-07-27)
+
+### Added
+- Backend Node Express: `GET /api/health`, `POST /api/analyze-cv`
+- Health check client + disabilitazione “Analizza e genera” se backend non pronto
+- AbortController su fetch AI (timeout reale)
+- Smoke tests (`npm test`) e workflow CI GitHub Actions
+- Documentazione README / DEPLOYMENT / .env.example
+
+### Fixed
+- Readiness AI basata solo su stringa endpoint (falso positivo)
+- Persistenza template: fillMode ripristinato; niente base64+ArrayBuffer simultanei in memoria
+- Busy gating ampliato (upload, lingua, modalità AI, download)
+
+### Security
+- API key OpenAI solo server-side in modalità secure
+- Modalità localDev bloccata fuori localhost
+- Nessun log di CV text / risposte modello complete lato server

@@ -40,49 +40,121 @@ const MODE_LABELS = Object.freeze({
 });
 
 /* =============================================================================
-   2. STATO APPLICAZIONE
+   2. STATO APPLICAZIONE — AppState centralizzato (punto unico dati)
+   -----------------------------------------------------------------------------
+   Compatibilità REV01: lastResult / currentCalculation / lastOvertime restano
+   disponibili e sono sempre allineati ad AppState tramite i setter dedicati.
+   Le formule di calcolo NON dipendono da AppState.
    ============================================================================= */
+
+/**
+ * Store globale dell'applicazione.
+ * Futuri moduli (Draft, Offerte, Archivio, Storico) devono leggere/scrivere qui.
+ *
+ * calculation / overtime: null quando assenti (falsy, come REV01).
+ * draft: struttura modulo Draft Tecnico (FASE A — solo UI + stato).
+ */
+const AppState = {
+  meta: {
+    versione: "REV01_STABLE",
+    dataCreazione: null
+  },
+  calculation: null,
+  overtime: null,
+  draft: {
+    project: {},
+    workSchedule: {},
+    rotation: {},
+    overtime: {},
+    accommodation: {},
+    localTransport: {},
+    mobDemob: {},
+    travelDays: {},
+    contract: {},
+    remuneration: {}
+  },
+  // REV03 FASE B2 — ramo indipendente (non tocca calculation / overtime / draft)
+  // API key NON è in AppState (solo localStorage / backend)
+  cvManager: {
+    template: null,
+    uploadedFile: null,
+    extractedText: "",
+    detectedLanguage: "unknown",
+    outputLanguage: "same",
+    model: "gpt-5.5",
+    analysisStatus: "idle",
+    analysis: null,
+    validationErrors: [],
+    lastError: null,
+    generationStatus: "idle",
+    generatedDocument: null,
+    generatedFileName: ""
+  }
+};
+
+/** Espone AppState globalmente per debug e futuri moduli */
+if (typeof window !== "undefined") {
+  window.AppState = AppState;
+}
 
 /** Modalità corrente: "italia" | "europa" | "europa-base" */
 let currentMode = "italia";
 
-/** Ultimo risultato di calcolo REV0 (necessario per export Word e UI costo) */
+/**
+ * Alias REV01 → AppState.calculation.fullResult (stesso riferimento dopo setAppCalculation).
+ * Mantenuto per compatibilità Word / UI costo.
+ */
 let lastResult = null;
 
 /**
- * Memoria globale dell'ultimo calcolo costo.
- * Aggiornata a ogni CALCOLA. La schermata Overtime legge SOLO da qui.
- * @type {null | {
- *   tipoContratto: string,
- *   mode: string,
- *   netto: number,
- *   parteTassata: number,
- *   costoLavoro: number,
- *   trasferta: number,
- *   pocketMoney: number,
- *   affitto: number,
- *   auto: number,
- *   costiStruttura: number,
- *   margine: number,
- *   marginePerc: number,
- *   totaleCosto: number,
- *   prezzoFinale: number,
- *   rate26: number,
- *   rate30: number,
- *   rate217: number,
- *   quotaBase: number|null,
- *   differenza: number|null,
- *   moltiplicatore: number,
- *   fullResult: object
- * }}
+ * Alias REV01 → AppState.calculation
+ * Snapshot normalizzato usato da Overtime (e futuri moduli).
  */
 let currentCalculation = null;
 
-/** Ultimo risultato overtime (indipendente dalla REV0) */
+/**
+ * Alias REV01 → AppState.overtime
+ */
 let lastOvertime = null;
 
-/** Vista SPA attiva: "costo" | "overtime" */
+/** Vista SPA attiva: "costo" | "overtime" | "draft" | "cvManager" */
 let currentView = "costo";
+
+/**
+ * Scrive il risultato costo in AppState.calculation e aggiorna gli alias REV01.
+ * lastResult e currentCalculation puntano ai dati contenuti in AppState.calculation.
+ *
+ * @param {object|null} result - output di calcolaPerModalita, oppure null per reset
+ */
+function setAppCalculation(result) {
+  if (!result) {
+    lastResult = null;
+    currentCalculation = null;
+    AppState.calculation = null;
+    return;
+  }
+
+  lastResult = result;
+  // Costruisce lo snapshot normalizzato e lo assegna ad AppState.calculation
+  syncCurrentCalculation(result);
+}
+
+/**
+ * Scrive il risultato overtime in AppState.overtime e aggiorna lastOvertime.
+ * @param {object|null} ot
+ */
+function setAppOvertime(ot) {
+  lastOvertime = ot || null;
+  AppState.overtime = ot || null;
+}
+
+/**
+ * Reset completo di calculation + overtime in AppState (draft intatto).
+ */
+function clearAppCalculationAndOvertime() {
+  setAppCalculation(null);
+  setAppOvertime(null);
+}
 
 /** Default overtime (solo valori orari — nessuna ore straordinarie) */
 const OVERTIME_DEFAULTS = Object.freeze({
@@ -329,6 +401,8 @@ function calcolaItalia(input) {
 function calcolaEuropa(input) {
   const result = calcolaItalia(input);
   result.mode = "europa";
+  // modeLabel resterebbe "Italia" da calcolaItalia — allinea etichetta alla modalità reale
+  result.modeLabel = MODE_LABELS.europa;
   // Rigenera i passaggi con etichetta Europa
   result.steps = buildStepsItalia({
     netto: result.netto,
@@ -521,6 +595,33 @@ function buildStepsEuropaBase(p) {
    ============================================================================= */
 
 /**
+ * Prepara l'input per le formule REV01 senza modificarle.
+ * Pocket Money è imponibile: netto_calc = netto + pocket, pocket_calc = 0.
+ * In modalità Estero (europa-base) il pocket entra nella quota base (tassata).
+ * @param {object} formInput - valori grezzi dal form
+ * @param {string} mode
+ * @returns {object}
+ */
+function buildCalcInputFromForm(formInput, mode) {
+  const pocket = Number(formInput.pocketMoney) || 0;
+  const nettoBase = Number(formInput.netto) || 0;
+  const input = Object.assign({}, formInput, {
+    netto: nettoBase + pocket,
+    pocketMoney: 0,
+    // metadati per UI / Draft (le formule li ignorano)
+    nettoMensile: nettoBase,
+    pocketMoneyOriginale: pocket
+  });
+
+  if (mode === "europa-base" && pocket > 0) {
+    // Tiene invariata la differenza (netto−quota) e tassa il pocket via quota base
+    input.quotaBase = (Number(formInput.quotaBase) || 0) + pocket;
+  }
+
+  return input;
+}
+
+/**
  * Raccoglie tutti i valori dal form in un oggetto input tipizzato.
  * @returns {object}
  */
@@ -572,13 +673,23 @@ function buildTableRows(result) {
   const rows = [];
 
   // Ordine richiesto dal capitolato (sempre presente)
-  rows.push({ label: "Netto", value: formatCurrency(result.netto) });
+  // Mostra il netto mensile di input (il pocket è voce separata, già incluso nel calcolo)
+  rows.push({
+    label: "Netto",
+    value: formatCurrency(
+      result.nettoMensile != null ? result.nettoMensile : result.netto
+    )
+  });
 
   // Campi aggiuntivi solo per Europa Base Assunzione (chiarezza del calcolo)
   if (result.mode === "europa-base") {
     rows.push({
       label: "Quota Base Assunzione",
-      value: formatCurrency(result.quotaBase)
+      value: formatCurrency(
+        result.quotaBaseOriginale != null
+          ? result.quotaBaseOriginale
+          : result.quotaBase
+      )
     });
     rows.push({
       label: "Differenza (esentasse)",
@@ -761,9 +872,7 @@ function applyMode(mode, options) {
  * Nasconde i risultati e disabilita export
  */
 function clearResultsView() {
-  lastResult = null;
-  currentCalculation = null;
-  lastOvertime = null;
+  clearAppCalculationAndOvertime();
   setVisible("statoVuoto", true);
   setVisible("contenitoreRisultati", false);
   document.getElementById("sottotitoloRisultati").textContent =
@@ -777,6 +886,7 @@ function clearResultsView() {
   document.getElementById("listaPassaggi").innerHTML = "";
   clearOvertimeResultsView();
   refreshOvertimeImportedPanel();
+  refreshDraftBindings();
 }
 
 /* =============================================================================
@@ -792,8 +902,8 @@ function handleCalcola(event) {
     event.preventDefault();
   }
 
-  const input = collectInputFromForm();
-  const validation = validateInput(input);
+  const formInput = collectInputFromForm();
+  const validation = validateInput(formInput);
 
   if (!validation.ok) {
     window.alert(validation.message);
@@ -802,14 +912,22 @@ function handleCalcola(event) {
   }
 
   try {
-    const result = calcolaPerModalita(currentMode, input);
-    lastResult = result;
-    // Aggiorna memoria globale per Overtime (REV0 intatta)
-    syncCurrentCalculation(result);
-    lastOvertime = null;
+    // Adapter: pocket imponibile senza alterare le formule REV01
+    const calcInput = buildCalcInputFromForm(formInput, currentMode);
+    const result = calcolaPerModalita(currentMode, calcInput);
+    // Ripristina pocket e netto mensile per UI / Draft / Word
+    result.pocketMoney = formInput.pocketMoney;
+    result.nettoMensile = formInput.netto;
+    result.quotaBaseOriginale = formInput.quotaBase;
+    // result.netto resta il totale usato dal calcolo (netto + pocket)
+    // Aggiorna AppState.calculation (+ alias lastResult / currentCalculation)
+    setAppCalculation(result);
+    // Nuovo calcolo costo invalida overtime precedente
+    setAppOvertime(null);
     clearOvertimeResultsView();
     renderResults(result);
     refreshOvertimeImportedPanel();
+    refreshDraftBindings();
   } catch (err) {
     console.error(err);
     window.alert("Errore durante il calcolo: " + err.message);
@@ -837,6 +955,7 @@ function handleReset() {
   }
 
   clearResultsView();
+  refreshRateCandidatoPreview();
   document.getElementById("netto").focus();
 }
 
@@ -845,15 +964,18 @@ function handleReset() {
    ============================================================================= */
 
 /**
- * Popola currentCalculation dall'ultimo risultato REV0.
- * Non altera i valori: solo li espone con chiavi stabili per Overtime.
+ * Popola currentCalculation dall'ultimo risultato REV0 e lo sincronizza in AppState.calculation.
+ * Non altera i valori: solo li espone con chiavi stabili per Overtime / futuri moduli.
  * @param {object} result - output di calcolaItalia / Europa / Estero
  */
 function syncCurrentCalculation(result) {
   currentCalculation = {
-    tipoContratto: result.modeLabel,
+    // Etichetta sempre da mode reale (evita etichette stale)
+    tipoContratto: MODE_LABELS[result.mode] || result.modeLabel || result.mode,
     mode: result.mode,
     netto: result.netto,
+    nettoMensile:
+      result.nettoMensile != null ? result.nettoMensile : result.netto,
     parteTassata: result.parteTassata,
     costoLavoro: result.costoLavoro,
     trasferta: result.trasferta,
@@ -871,13 +993,16 @@ function syncCurrentCalculation(result) {
     quotaBase: result.quotaBase,
     differenza: result.differenza,
     moltiplicatore: result.moltiplicatore,
+    // lastResult rimane accessibile anche da AppState.calculation.fullResult
     fullResult: result
   };
+  // Punto unico: currentCalculation === AppState.calculation
+  AppState.calculation = currentCalculation;
 }
 
 /**
  * Cambia vista SPA senza reload e senza perdere i dati dei form.
- * @param {"costo"|"overtime"} view
+ * @param {"costo"|"overtime"|"draft"} view
  */
 function switchView(view) {
   currentView = view;
@@ -890,9 +1015,14 @@ function switchView(view) {
 
   setVisible("viewCosto", view === "costo");
   setVisible("viewOvertime", view === "overtime");
+  setVisible("viewDraft", view === "draft");
+  setVisible("viewCvManager", view === "cvManager");
 
   if (view === "overtime") {
     refreshOvertimeImportedPanel();
+  }
+  if (view === "draft") {
+    refreshDraftBindings();
   }
 }
 
@@ -1135,11 +1265,43 @@ function calcolaOvertimeCliente(calc, metodo, giorniCalendar, oreLavorative, fat
 }
 
 /**
+ * Sorgente dati per Overtime.
+ * Se rate manuale > 0 → modalità standalone.
+ * Altrimenti → AppState.calculation (comportamento REV01 invariato).
+ * @returns {object|null}
+ */
+function getOvertimeCalcSource() {
+  const rateManuale = readNumber("otRateManuale");
+  if (rateManuale > 0) {
+    const metodoManuale = readMetodoByName("otMetodoManuale") || "working";
+    const giorniManuale =
+      readNumber("otGiorniManuale") || OVERTIME_DEFAULTS.giorniCalendar;
+    const giorniBase = metodoManuale === "calendar" ? giorniManuale : 26;
+    // Rate giornaliero manuale = base; costruisce lo snapshot atteso dalle formule OT
+    return {
+      tipoContratto: "Manuale",
+      mode: "manuale",
+      standalone: true,
+      netto: rateManuale * giorniBase,
+      rate26: rateManuale,
+      rate30: rateManuale,
+      rate217: rateManuale,
+      prezzoFinale: rateManuale * 26,
+      giorniManuale: giorniBase
+    };
+  }
+
+  return AppState.calculation || currentCalculation || null;
+}
+
+/**
  * Orchestratore: tecnico + cliente indipendenti + margine orario.
+ * Formule OT invariate; cambia solo la sorgente dati (AppState o manuale).
  * @returns {object|null}
  */
 function calcolaOvertimeCompleto() {
-  if (!currentCalculation) {
+  const calc = getOvertimeCalcSource();
+  if (!calc) {
     return null;
   }
 
@@ -1164,14 +1326,14 @@ function calcolaOvertimeCompleto() {
   }
 
   const tecnico = calcolaOvertimeTecnico(
-    currentCalculation,
+    calc,
     metodoTecnico,
     giorniTecnico,
     oreLavorative,
     maggTecnico
   );
   const cliente = calcolaOvertimeCliente(
-    currentCalculation,
+    calc,
     metodoCliente,
     giorniCliente,
     oreLavorative,
@@ -1205,44 +1367,59 @@ function calcolaOvertimeCompleto() {
     cliente,
     margineOrario,
     steps,
+    standalone: !!calc.standalone,
     imported: {
-      tipoContratto: currentCalculation.tipoContratto,
-      netto: currentCalculation.netto,
-      prezzoFinale: currentCalculation.prezzoFinale,
-      rate26: currentCalculation.rate26,
-      rate30: currentCalculation.rate30,
-      rate217: currentCalculation.rate217
+      tipoContratto: calc.tipoContratto,
+      netto: calc.netto,
+      prezzoFinale: calc.prezzoFinale,
+      rate26: calc.rate26,
+      rate30: calc.rate30,
+      rate217: calc.rate217
     }
   };
 }
 
 /**
- * Aggiorna pannello dati importati + mostra/nasconde contenuto overtime
+ * Mostra/nasconde giorni calendar del calcolo manuale overtime.
+ */
+function syncManualOvertimeVisibility() {
+  setVisible(
+    "fieldGiorniManuale",
+    readMetodoByName("otMetodoManuale") === "calendar"
+  );
+}
+
+/**
+ * Aggiorna pannello dati importati. Il form OT resta sempre disponibile (anche standalone).
  */
 function refreshOvertimeImportedPanel() {
-  const hasCalc = !!currentCalculation;
-  setVisible("otMissingCard", !hasCalc);
-  setVisible("otContent", hasCalc);
+  const calc = AppState.calculation || currentCalculation;
+  const hasCalc = !!calc;
+  const hasManual = readNumber("otRateManuale") > 0;
+
+  // Avviso soft solo se non c'è né calcolo né manuale già valorizzato
+  setVisible("otMissingCard", !hasCalc && !hasManual);
+  setVisible("otContent", true);
+  setVisible("otImportedCard", hasCalc);
 
   if (!hasCalc) {
     return;
   }
 
-  document.getElementById("otImpTipo").textContent = currentCalculation.tipoContratto;
-  document.getElementById("otImpNetto").textContent = formatCurrency(
-    currentCalculation.netto
-  );
+  document.getElementById("otImpTipo").textContent =
+    MODE_LABELS[calc.mode] || calc.tipoContratto || "—";
+  document.getElementById("otImpNetto").textContent = formatCurrency(calc.netto);
   document.getElementById("otImpPrezzoFinale").textContent = formatCurrency(
-    currentCalculation.prezzoFinale
+    calc.prezzoFinale
   );
   document.getElementById("otImpRate26").textContent = formatCurrency(
-    currentCalculation.rate26
+    calc.rate26
   );
   document.getElementById("otImpRate30").textContent = formatCurrency(
-    currentCalculation.rate30
+    calc.rate30
   );
   document.getElementById("otImpRate217").textContent = formatCurrency(
-    currentCalculation.rate217
+    calc.rate217
   );
 }
 
@@ -1282,9 +1459,10 @@ function handleResetOvertime() {
   setRadio("otMaggTecnico", "1");
   setRadio("otMaggCliente", "1");
 
-  lastOvertime = null;
+  setAppOvertime(null);
   clearOvertimeResultsView();
   syncCalendarDaysVisibility();
+  refreshDraftBindings();
 }
 
 /**
@@ -1413,22 +1591,266 @@ function handleCalcolaOvertime(event) {
     event.preventDefault();
   }
 
-  if (!currentCalculation) {
+  if (!getOvertimeCalcSource()) {
     window.alert(
-      "Eseguire prima un calcolo nella scheda Calcolo costo personale."
+      "Inserire un Rate giornaliero in Calcolo manuale, oppure eseguire prima un calcolo costo personale."
     );
-    switchView("costo");
     return;
   }
 
   try {
     const ot = calcolaOvertimeCompleto();
-    lastOvertime = ot;
+    if (!ot) {
+      window.alert("Impossibile calcolare l'overtime: dati insufficienti.");
+      return;
+    }
+    setAppOvertime(ot);
     renderOvertimeResults(ot);
+    refreshDraftBindings();
   } catch (err) {
     console.error(err);
     window.alert(err.message || "Errore durante il calcolo overtime.");
   }
+}
+
+/* =============================================================================
+   9d. DRAFT TECNICO (FASE A) — UI + AppState.draft
+   -----------------------------------------------------------------------------
+   Nessun export Word. Nessuna modifica alle formule REV01.
+   ============================================================================= */
+
+/**
+ * Legge il valore del radio selezionato per name.
+ * @param {string} name
+ * @returns {string}
+ */
+function readDraftRadio(name) {
+  const el = document.querySelector('input[name="' + name + '"]:checked');
+  return el ? el.value : "";
+}
+
+/**
+ * Mostra/nasconde i campi condizionali del form Draft.
+ */
+function syncDraftConditionalFields() {
+  const periodoMode = readDraftRadio("draftPeriodoMode");
+  setVisible("draftPeriodoCalendarBlock", periodoMode !== "text");
+  setVisible("draftPeriodoTextBlock", periodoMode === "text");
+
+  setVisible("draftOrarioCustomBlock", readDraftRadio("draftOrario") === "custom");
+  setVisible(
+    "draftTurnazioneFreeBlock",
+    readDraftRadio("draftTurnazioneMode") === "free"
+  );
+  setVisible(
+    "draftStraordinariManualBlock",
+    readDraftRadio("draftStraordinari") === "manual"
+  );
+
+  const alloggio = readDraftRadio("draftAlloggio");
+  setVisible(
+    "draftAlloggioDetailBlock",
+    alloggio === "contributo" || alloggio === "personalizzato"
+  );
+
+  const trasporti = readDraftRadio("draftTrasporti");
+  setVisible(
+    "draftTrasportiDetailBlock",
+    trasporti === "personalizzato"
+  );
+}
+
+/**
+ * Scrive i campi del form in AppState.draft (struttura FASE A).
+ * Collega remunerazione e predispone OT tecnico da AppState esistenti.
+ */
+function syncDraftStateFromForm() {
+  const calc = AppState.calculation;
+  const ot = AppState.overtime;
+
+  const remAvailable = !!(calc && Number.isFinite(Number(calc.netto)));
+  const otTecnico =
+    ot && ot.tecnico && Number.isFinite(Number(ot.tecnico.costoOrario))
+      ? ot.tecnico.costoOrario
+      : null;
+
+  AppState.draft = {
+    project: {
+      posizione: (document.getElementById("draftPosizione") || {}).value || "",
+      localita: (document.getElementById("draftLocalita") || {}).value || "",
+      progetto: (document.getElementById("draftProgetto") || {}).value || "",
+      periodoMode: readDraftRadio("draftPeriodoMode") || "calendar",
+      periodoDa: (document.getElementById("draftPeriodoDa") || {}).value || "",
+      periodoA: (document.getElementById("draftPeriodoA") || {}).value || "",
+      periodoTesto: (document.getElementById("draftPeriodoTesto") || {}).value || ""
+    },
+    workSchedule: {
+      mode: readDraftRadio("draftOrario") || "40h5",
+      custom: (document.getElementById("draftOrarioCustom") || {}).value || ""
+    },
+    rotation: {
+      mode: readDraftRadio("draftTurnazioneMode") || "free",
+      value: (document.getElementById("draftTurnazione") || {}).value || ""
+    },
+    overtime: {
+      mode: readDraftRadio("draftStraordinari") || "auto",
+      manualValue:
+        (document.getElementById("draftStraordinariManuale") || {}).value || "",
+      // Predisposizione collegamento futuro a AppState.overtime
+      tecnicoCostoOrario: otTecnico,
+      linkedFromAppState: otTecnico != null
+    },
+    accommodation: {
+      mode: readDraftRadio("draftAlloggio") || "cliente",
+      detail: (document.getElementById("draftAlloggioDettaglio") || {}).value || ""
+    },
+    localTransport: {
+      mode: readDraftRadio("draftTrasporti") || "cliente",
+      detail:
+        (document.getElementById("draftTrasportiDettaglio") || {}).value || ""
+    },
+    mobDemob: {
+      mode: readDraftRadio("draftMobDemob") || "standard",
+      voliNostroCarico: !!(
+        document.getElementById("draftVoliNostroCarico") || {}
+      ).checked
+    },
+    travelDays: {
+      mode: readDraftRadio("draftGiorniViaggio") || "100"
+    },
+    contract: {
+      type: "CCNL Commercio",
+      livello: readDraftRadio("draftContrattoLivello") || "1"
+    },
+    remuneration: {
+      available: remAvailable,
+      nettoMese: remAvailable
+        ? calc.nettoMensile != null
+          ? calc.nettoMensile
+          : calc.netto
+        : null,
+      // Rate candidato (netto mensile / 26) — non il rate vendita cliente
+      rate26: remAvailable
+        ? getRateCandidato26(
+            calc.nettoMensile != null ? calc.nettoMensile : calc.netto
+          )
+        : null,
+      pocketMoney: remAvailable ? calc.pocketMoney || 0 : null,
+      pocketCalendarDay: remAvailable
+        ? getPocketMoneyCalendarDay(calc.pocketMoney)
+        : null
+    }
+  };
+}
+
+/**
+ * Aggiorna i campi sola lettura Draft da AppState.calculation / overtime.
+ */
+function refreshDraftBindings() {
+  const form = document.getElementById("formDraft");
+  if (!form) {
+    return;
+  }
+
+  syncDraftConditionalFields();
+
+  const calc = AppState.calculation;
+  const remAvailable = !!(calc && Number.isFinite(Number(calc.netto)));
+  const nettoMensile = remAvailable
+    ? calc.nettoMensile != null
+      ? Number(calc.nettoMensile)
+      : Number(calc.netto)
+    : null;
+
+  const remNetto = document.getElementById("draftRemNetto");
+  const remRate26 = document.getElementById("draftRemRate26");
+  const remMissing = document.getElementById("draftRemMissing");
+  const remHint = document.getElementById("draftRemHint");
+
+  if (remNetto) {
+    remNetto.textContent =
+      nettoMensile != null && Number.isFinite(nettoMensile)
+        ? formatCurrency(nettoMensile)
+        : "—";
+  }
+  if (remRate26) {
+    const rateCand =
+      nettoMensile != null ? getRateCandidato26(nettoMensile) : null;
+    remRate26.textContent =
+      rateCand == null ? "—" : formatCurrency(rateCand);
+  }
+  if (remMissing) {
+    if (remAvailable) {
+      remMissing.setAttribute("hidden", "");
+    } else {
+      remMissing.removeAttribute("hidden");
+    }
+  }
+  if (remHint) {
+    remHint.textContent = remAvailable
+      ? "Valori automatici da AppState.calculation (sola lettura)."
+      : "In attesa di un calcolo costo personale.";
+  }
+
+  // Pocket Money (solo se > 0): Euro XX,XX calendar day
+  const pocketText = buildDraftPocketMoneyText();
+  const pocketBlock = document.getElementById("draftPocketBlock");
+  const pocketValue = document.getElementById("draftPocketValue");
+  if (pocketBlock) {
+    if (pocketText) {
+      pocketBlock.removeAttribute("hidden");
+      if (pocketValue) {
+        pocketValue.textContent = pocketText;
+      }
+    } else {
+      pocketBlock.setAttribute("hidden", "");
+      if (pocketValue) {
+        pocketValue.textContent = "—";
+      }
+    }
+  }
+
+  // Predisposizione collegamento OT tecnico (futuro uso pieno in modalità auto)
+  const ot = AppState.overtime;
+  const otEl = document.getElementById("draftOtTecnico");
+  const otHint = document.getElementById("draftOtHint");
+  const hasOt =
+    ot && ot.tecnico && Number.isFinite(Number(ot.tecnico.costoOrario));
+
+  if (otEl) {
+    otEl.textContent = hasOt ? formatHourly(ot.tecnico.costoOrario) : "—";
+  }
+  if (otHint) {
+    otHint.textContent = hasOt
+      ? "Collegato da AppState.overtime.tecnico.costoOrario."
+      : "Predisposto: si aggiorna quando esiste un calcolo overtime.";
+  }
+
+  syncDraftStateFromForm();
+}
+
+/**
+ * Collega listener del form Draft (input → AppState.draft).
+ */
+function initDraftModule() {
+  const form = document.getElementById("formDraft");
+  if (!form) {
+    return;
+  }
+
+  form.addEventListener("submit", function (event) {
+    event.preventDefault();
+  });
+
+  const onDraftChange = function () {
+    syncDraftConditionalFields();
+    syncDraftStateFromForm();
+  };
+
+  form.addEventListener("input", onDraftChange);
+  form.addEventListener("change", onDraftChange);
+
+  refreshDraftBindings();
 }
 
 /* =============================================================================
@@ -1620,6 +2042,685 @@ function buildOvertimeWordParagraphs(docxLib, BLUE) {
   });
 
   return blocks;
+}
+
+/* =============================================================================
+   10b. EXPORT WORD — DRAFT TECNICO (REV02.1)
+   -----------------------------------------------------------------------------
+   Builder dedicato. Template aziendali fissi + variabili.
+   NON genera/parafrasa testi. NON modifica buildOvertimeWordParagraphs / buildTableRows.
+   ============================================================================= */
+
+/** Font e corpo standard Draft aziendale */
+const DRAFT_WORD_FONT = "Arial MT";
+/** Corpo 11 pt = 22 half-points */
+const DRAFT_WORD_SIZE = 22;
+/** Titolo più grande (16 pt) */
+const DRAFT_WORD_TITLE_SIZE = 32;
+
+/**
+ * Template aziendali approvati (testi fissi da bozze "DRAFT di CONTRATTO").
+ * Solo placeholder {var} vengono sostituiti; nessun testo generato.
+ */
+const DRAFT_TEMPLATES = Object.freeze({
+  orario60:
+    "Fino a 60 ore/settimana, fino a 6 giorni/settimana. Qualora il cliente richiedesse un orario differente (ad esempio 40 ore/settimana per 5 giornate lavorative), il compenso netto concordato rimarrà invariato. Eventuali assenze volontarie o per esigenze personali non saranno remunerate.",
+  orario48:
+    "Fino a 48 ore/settimana, fino a 6 giorni/settimana. Qualora il cliente richiedesse un orario differente (ad esempio 40 ore/settimana per 5 giornate lavorative), il compenso netto concordato rimarrà invariato. Eventuali assenze volontarie o per esigenze personali non saranno remunerate.",
+  orario40:
+    "Fino a 40 ore/settimana, fino a 5 giorni/settimana. Eventuali assenze volontarie o per esigenze personali non saranno remunerate.",
+
+  straordinariEuro:
+    "Euro {importo} per ogni ora lavorata in eccesso rispetto l'orario standard solo se espressamente richiesto e firmato dal cliente.",
+  straordinariFormula10:
+    "pari ad 1/10 del rate giornaliero per ogni ora lavorata in eccesso rispetto l'orario di cantiere standard, solo se espressamente richiesto e approvate dal cliente.",
+  straordinariNA: "N/A",
+
+  alloggioCliente: "A carico del Cliente.",
+  alloggioCandidato: "A suo carico.",
+  alloggioContributo:
+    "Contributo fino a un massimo di euro {importo} a fronte di presentazione pezze giustificative.",
+
+  trasportiCliente: "A carico del Cliente.",
+  trasportiCandidato: "A suo carico.",
+  trasportiRenting: "Renting auto (city car) a nostro carico.",
+
+  pocketMoneyCalendar: "Euro {importo} calendar day",
+
+  mobStandard:
+    "Le spese sostenute per Mob / Demob saranno rimborsate a fronte di giustificativi con evidenza di copia di fatture scontrini o documentazione equivalente.",
+  mobVoli: "Ticket flight (classe economy) a nostro carico",
+  mobNA: "N/A",
+
+  viaggio100:
+    "Durante i giorni di viaggio necessari per il raggiungimento del sito e per il rientro presso la propria residenza, sarà riconosciuto un importo pari al 100% dell'importo giornaliero concordato per le attività in sito.",
+  viaggio50:
+    "Durante i giorni di viaggio necessari per il raggiungimento del sito e per il rientro presso la propria residenza, sarà riconosciuto un importo pari al 50% dell'importo giornaliero concordato per le attività in sito.",
+  viaggioNA: "N/A",
+
+  contratto:
+    'Assunzione a "Tempo Determinato" – Liv. {livello} – C.C.N.L. COMMERCIO',
+
+  remunerazione:
+    "La retribuzione sarà pari {rate26} euro netti per giorno lavorato ({rate26}X26 pari a {netto} euro mese) E sarà così costituita:\n- Retribuzione base riferita al livello di appartenenza\n- Rateo di 13^\n- Rateo di 14^\n- Ferie e permessi\n- TFR\n- Indennità di trasferta\n- voci di rimborso varie",
+
+  nota:
+    "La procedura di pagamento tiene conto dei tempi occorrenti per gestione della documentazione necessaria per la elaborazione degli stipendi, pertanto la competenza mensile viene erogata ENTRO E NON OLTRE IL 20 del mese successivo a quello lavorato a fronte di Time sheet firmato ed approvato inviato in sede entro il 3 del mese successivo a quello lavorato",
+  periodoProva: "In accordo con il CCNL del Commercio",
+  periodoPreavviso: "In accordo con il CCNL del Commercio",
+  assicurazione1: "In accordo alle Leggi ed ai Regolamenti Italiani (INAIL)",
+  assicurazione2: "Allianz",
+
+  inizioPrefix: "Indicativamente dal {data}",
+  inizioCompat:
+    "compatibilmente con i tempi per la documentazione burocratica",
+  finePrefix: "Indicativamente al {data}",
+  durataSuffix:
+    "(estendibili / modificabili in relazione alla reale situazione del progetto)",
+
+  turnazioneTBD: "To Be Defined",
+  turnazioneNA: "N/A",
+  turnazioneDefinita:
+    "{schema}. In fase di turnazione saranno riconosciuti i giorni di viaggio; le spese di viaggio saranno rimborsate a fronte di presentazione di ricevute per biglietti / carburante / pedaggi / altro. I giorni di turnazione non saranno remunerati."
+});
+
+/**
+ * Sostituisce placeholder {nome} in un template aziendale.
+ * @param {string} template
+ * @param {object} vars
+ * @returns {string}
+ */
+function applyDraftTemplate(template, vars) {
+  let out = String(template || "");
+  const map = vars || {};
+  Object.keys(map).forEach(function (key) {
+    out = out.split("{" + key + "}").join(String(map[key]));
+  });
+  return out;
+}
+
+/**
+ * Numero in formato italiano (es. 3.500,00) senza simbolo valuta.
+ * @param {number} value
+ * @returns {string}
+ */
+function formatDraftItNumber(value) {
+  const n = Number(value);
+  if (!Number.isFinite(n)) {
+    return "";
+  }
+  return n.toLocaleString("it-IT", {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2
+  });
+}
+
+/**
+ * Formatta una data ISO (yyyy-mm-dd) in dd/mm/yyyy.
+ * @param {string} iso
+ * @returns {string}
+ */
+function formatDraftDateIt(iso) {
+  if (!iso || typeof iso !== "string") {
+    return "";
+  }
+  const parts = iso.split("-");
+  if (parts.length !== 3) {
+    return iso;
+  }
+  return parts[2] + "/" + parts[1] + "/" + parts[0];
+}
+
+/**
+ * Stima durata tra due date ISO in mesi (senza giorni).
+ * @param {string} da
+ * @param {string} a
+ * @returns {string}
+ */
+function formatDraftDuration(da, a) {
+  const t1 = Date.parse(da);
+  const t2 = Date.parse(a);
+  if (!Number.isFinite(t1) || !Number.isFinite(t2) || t2 < t1) {
+    return "";
+  }
+  const days = Math.round((t2 - t1) / 86400000) + 1;
+  const months = Math.max(1, Math.round(days / 30.4375));
+  if (months === 1) {
+    return "1 mese";
+  }
+  return months + " mesi";
+}
+
+/**
+ * Rate candidato (26) = Netto mensile / 26.
+ * Solo per Draft UI/Word — NON è il rate di vendita cliente.
+ * @param {number} netto
+ * @returns {number|null}
+ */
+function getRateCandidato26(netto) {
+  const n = Number(netto);
+  if (!Number.isFinite(n) || n <= 0) {
+    return null;
+  }
+  return n / 26;
+}
+
+/**
+ * Aggiorna l'anteprima informativa "Rate candidato (26 gg)" sotto il campo Netto.
+ * Non entra in nessun calcolo REV01.
+ */
+function refreshRateCandidatoPreview() {
+  const el = document.getElementById("rateCandidatoPreview");
+  if (!el) {
+    return;
+  }
+  const rate = getRateCandidato26(readNumber("netto"));
+  el.textContent = rate == null ? "—" : formatCurrency(rate);
+}
+
+/**
+ * Pocket Money giornaliero (calendar day) = mensile / 30.
+ * @param {number} pocketMensile
+ * @returns {number|null}
+ */
+function getPocketMoneyCalendarDay(pocketMensile) {
+  const n = Number(pocketMensile);
+  if (!Number.isFinite(n) || n <= 0) {
+    return null;
+  }
+  return n / 30;
+}
+
+/**
+ * Testo Draft Pocket Money (solo se > 0).
+ * @returns {string|null}
+ */
+function buildDraftPocketMoneyText() {
+  const calc = AppState.calculation;
+  const pocket =
+    calc && calc.pocketMoney != null
+      ? Number(calc.pocketMoney)
+      : readNumber("pocketMoney");
+  const day = getPocketMoneyCalendarDay(pocket);
+  if (day == null) {
+    return null;
+  }
+  return applyDraftTemplate(DRAFT_TEMPLATES.pocketMoneyCalendar, {
+    importo: formatDraftItNumber(day)
+  });
+}
+
+/**
+ * Remunerazione: template + netto mensile + rate candidato (netto mensile / 26).
+ * Il pocket ha voce separata nel Draft.
+ * @returns {string}
+ */
+function buildDraftRemunerationText() {
+  const calc = AppState.calculation;
+  if (!calc) {
+    return "—";
+  }
+  const nettoMensile =
+    calc.nettoMensile != null ? Number(calc.nettoMensile) : Number(calc.netto);
+  if (!Number.isFinite(nettoMensile) || nettoMensile <= 0) {
+    return "—";
+  }
+  const rateCand = getRateCandidato26(nettoMensile);
+  if (rateCand == null) {
+    return "—";
+  }
+  return applyDraftTemplate(DRAFT_TEMPLATES.remunerazione, {
+    rate26: formatDraftItNumber(rateCand),
+    netto: formatDraftItNumber(nettoMensile)
+  });
+}
+
+/**
+ * Straordinari: template aziendali + importo OT / manuale / formula 1/10.
+ * @param {object} draft
+ * @returns {string}
+ */
+function buildDraftOvertimeText(draft) {
+  const otDraft = (draft && draft.overtime) || {};
+  const mode = otDraft.mode || "auto";
+
+  if (mode === "na") {
+    return DRAFT_TEMPLATES.straordinariNA;
+  }
+  if (mode === "formula10") {
+    return DRAFT_TEMPLATES.straordinariFormula10;
+  }
+  if (mode === "manual") {
+    const manual = (otDraft.manualValue || "").trim();
+    if (!manual) {
+      return "—";
+    }
+    // Se l'utente ha già inserito una frase completa, usarla così com'è
+    if (/[A-Za-z]{8,}/.test(manual) && !/^\d/.test(manual)) {
+      return manual;
+    }
+    const importo = manual.replace(/^Euro\s+/i, "").trim();
+    return applyDraftTemplate(DRAFT_TEMPLATES.straordinariEuro, {
+      importo: importo
+    });
+  }
+
+  // automatico da OT tecnico
+  const ot = AppState.overtime;
+  if (ot && ot.tecnico && Number.isFinite(Number(ot.tecnico.costoOrario))) {
+    return applyDraftTemplate(DRAFT_TEMPLATES.straordinariEuro, {
+      importo: formatDraftItNumber(ot.tecnico.costoOrario)
+    });
+  }
+  return "—";
+}
+
+/**
+ * Costruisce le righe etichetta → valore del Draft Word da template aziendali.
+ * @returns {Array<{label: string, value: string}>}
+ */
+function buildDraftWordRows() {
+  const draft = AppState.draft || {};
+  const project = draft.project || {};
+  const schedule = draft.workSchedule || {};
+  const rotation = draft.rotation || {};
+  const accommodation = draft.accommodation || {};
+  const transport = draft.localTransport || {};
+  const mob = draft.mobDemob || {};
+  const travel = draft.travelDays || {};
+  const contract = draft.contract || {};
+
+  // Periodo (template + date)
+  let inizio = "—";
+  let fine = "—";
+  let durata = "—";
+  if (project.periodoMode === "text") {
+    const txt = (project.periodoTesto || "").trim();
+    durata = txt
+      ? txt + "\n" + DRAFT_TEMPLATES.durataSuffix
+      : "—";
+  } else {
+    const da = formatDraftDateIt(project.periodoDa);
+    const a = formatDraftDateIt(project.periodoA);
+    if (da) {
+      inizio =
+        applyDraftTemplate(DRAFT_TEMPLATES.inizioPrefix, { data: da }) +
+        "\n" +
+        DRAFT_TEMPLATES.inizioCompat;
+    }
+    if (a) {
+      fine = applyDraftTemplate(DRAFT_TEMPLATES.finePrefix, { data: a });
+    }
+    if (project.periodoDa && project.periodoA) {
+      const d = formatDraftDuration(project.periodoDa, project.periodoA);
+      durata = d
+        ? d + "\n" + DRAFT_TEMPLATES.durataSuffix
+        : "—";
+    }
+  }
+
+  // Orario — template aziendali
+  let orario = "—";
+  if (schedule.mode === "custom") {
+    orario = (schedule.custom || "").trim() || "—";
+  } else if (schedule.mode === "60h6") {
+    orario = DRAFT_TEMPLATES.orario60;
+  } else if (schedule.mode === "48h6") {
+    orario = DRAFT_TEMPLATES.orario48;
+  } else if (schedule.mode === "40h5") {
+    orario = DRAFT_TEMPLATES.orario40;
+  }
+
+  // Turnazione
+  let turnazione = "—";
+  if (rotation.mode === "tbd") {
+    turnazione = DRAFT_TEMPLATES.turnazioneTBD;
+  } else if (rotation.mode === "na") {
+    turnazione = DRAFT_TEMPLATES.turnazioneNA;
+  } else {
+    const schema = (rotation.value || "").trim();
+    turnazione = schema
+      ? applyDraftTemplate(DRAFT_TEMPLATES.turnazioneDefinita, {
+          schema: schema
+        })
+      : "—";
+  }
+
+  // Alloggio
+  let alloggio = "—";
+  if (accommodation.mode === "cliente") {
+    alloggio = DRAFT_TEMPLATES.alloggioCliente;
+  } else if (accommodation.mode === "candidato") {
+    alloggio = DRAFT_TEMPLATES.alloggioCandidato;
+  } else if (accommodation.mode === "contributo") {
+    const det = (accommodation.detail || "").trim() || "…";
+    alloggio = applyDraftTemplate(DRAFT_TEMPLATES.alloggioContributo, {
+      importo: det
+    });
+  } else if (accommodation.mode === "personalizzato") {
+    alloggio = (accommodation.detail || "").trim() || "—";
+  }
+
+  // Trasporti
+  let trasporti = "—";
+  if (transport.mode === "cliente") {
+    trasporti = DRAFT_TEMPLATES.trasportiCliente;
+  } else if (transport.mode === "candidato") {
+    trasporti = DRAFT_TEMPLATES.trasportiCandidato;
+  } else if (transport.mode === "renting") {
+    trasporti = DRAFT_TEMPLATES.trasportiRenting;
+  } else if (transport.mode === "personalizzato") {
+    trasporti = (transport.detail || "").trim() || "—";
+  }
+
+  // Mob / Demob
+  let mobText = "—";
+  if (mob.mode === "na") {
+    mobText = DRAFT_TEMPLATES.mobNA;
+  } else {
+    mobText = DRAFT_TEMPLATES.mobStandard;
+  }
+  if (mob.voliNostroCarico) {
+    mobText =
+      (mobText === DRAFT_TEMPLATES.mobNA ? "" : mobText + "\n") +
+      DRAFT_TEMPLATES.mobVoli;
+  }
+
+  // Giorni viaggio
+  let giorniViaggio = "—";
+  if (travel.mode === "100") {
+    giorniViaggio = DRAFT_TEMPLATES.viaggio100;
+  } else if (travel.mode === "50") {
+    giorniViaggio = DRAFT_TEMPLATES.viaggio50;
+  } else if (travel.mode === "na") {
+    giorniViaggio = DRAFT_TEMPLATES.viaggioNA;
+  }
+
+  // Contratto
+  const livello = contract.livello === "2" ? "2" : "1";
+  const tipoContratto = applyDraftTemplate(DRAFT_TEMPLATES.contratto, {
+    livello: livello
+  });
+
+  const rows = [
+    { label: "Posizione", value: (project.posizione || "").trim() || "—" },
+    { label: "Località", value: (project.localita || "").trim() || "—" },
+    { label: "Progetto", value: (project.progetto || "").trim() || "—" },
+    { label: "Inizio Progetto", value: inizio },
+    { label: "Fine Progetto", value: fine },
+    { label: "Durata Stimata", value: durata },
+    { label: "Orario di lavoro", value: orario },
+    { label: "Turnazione", value: turnazione },
+    { label: "Straordinari", value: buildDraftOvertimeText(draft) },
+    { label: "Alloggio", value: alloggio },
+    { label: "Trasporti locali", value: trasporti }
+  ];
+
+  const pocketText = buildDraftPocketMoneyText();
+  if (pocketText) {
+    rows.push({ label: "Pocket Money", value: pocketText });
+  }
+
+  rows.push(
+    { label: "Mob e Demob", value: mobText },
+    { label: "Giorni di viaggio", value: giorniViaggio },
+    { label: "Tipo di contratto", value: tipoContratto },
+    {
+      label: "Remunerazione intervento",
+      value: buildDraftRemunerationText()
+    },
+    { label: "Nota", value: DRAFT_TEMPLATES.nota },
+    { label: "Periodo di prova", value: DRAFT_TEMPLATES.periodoProva },
+    { label: "Periodo di preavviso", value: DRAFT_TEMPLATES.periodoPreavviso },
+    { label: "Assicurazione 1", value: DRAFT_TEMPLATES.assicurazione1 },
+    { label: "Assicurazione 2", value: DRAFT_TEMPLATES.assicurazione2 }
+  );
+
+  return rows;
+}
+
+/**
+ * Builder dedicato: titolo + tabella 2 colonne (template aziendali).
+ * REV02.1 — layout allineato, data generazione, firma.
+ * @param {object} docxLib - window.docx
+ * @returns {{ title: object, table: object, children: Array }}
+ */
+function buildDraftWordSection(docxLib) {
+  const {
+    Paragraph,
+    TextRun,
+    Table,
+    TableRow,
+    TableCell,
+    WidthType,
+    AlignmentType,
+    BorderStyle,
+    VerticalAlign
+  } = docxLib;
+
+  const FONT = DRAFT_WORD_FONT;
+  const SIZE = DRAFT_WORD_SIZE;
+  // Larghezza utile A4 con margini 720 DXA: 11906 - 1440 = 10466
+  const PAGE_CONTENT = 10466;
+  const COL_LABEL = Math.round(PAGE_CONTENT * 0.3);
+  const COL_VALUE = PAGE_CONTENT - COL_LABEL;
+
+  const noBorder = {
+    style: BorderStyle.NONE,
+    size: 0,
+    color: "FFFFFF"
+  };
+  const borders = {
+    top: noBorder,
+    bottom: noBorder,
+    left: noBorder,
+    right: noBorder
+  };
+
+  // Margini cella identici sx/dx → prima riga di testo allineata in alto
+  const cellMargins = {
+    top: 120,
+    bottom: 160,
+    left: 80,
+    right: 120
+  };
+
+  function draftParagraphs(text, opts) {
+    const o = opts || {};
+    const raw = String(text == null || text === "" ? "—" : text);
+    const lines = raw.split(/\n/);
+    return lines.map(function (line, index) {
+      return new Paragraph({
+        spacing: {
+          before: 0,
+          after: index === lines.length - 1 ? 0 : 60,
+          line: 276,
+          lineRule: "auto"
+        },
+        children: [
+          new TextRun({
+            text: line,
+            bold: !!o.bold,
+            size: SIZE,
+            font: FONT
+          })
+        ]
+      });
+    });
+  }
+
+  function draftCell(text, opts) {
+    const o = opts || {};
+    const cellOpts = {
+      width: { size: o.width || COL_VALUE, type: WidthType.DXA },
+      borders: borders,
+      margins: cellMargins,
+      children: draftParagraphs(text, o)
+    };
+    if (VerticalAlign && VerticalAlign.TOP) {
+      cellOpts.verticalAlign = VerticalAlign.TOP;
+    }
+    return new TableCell(cellOpts);
+  }
+
+  const rows = buildDraftWordRows().map(function (row) {
+    return new TableRow({
+      children: [
+        draftCell(row.label, { width: COL_LABEL, bold: true }),
+        draftCell(row.value, { width: COL_VALUE, bold: false })
+      ]
+    });
+  });
+
+  const title = new Paragraph({
+    alignment: AlignmentType.CENTER,
+    spacing: { after: 400 },
+    children: [
+      new TextRun({
+        text: "DRAFT DI CONTRATTO",
+        bold: true,
+        size: DRAFT_WORD_TITLE_SIZE,
+        font: FONT
+      })
+    ]
+  });
+
+  const table = new Table({
+    width: { size: PAGE_CONTENT, type: WidthType.DXA },
+    columnWidths: [COL_LABEL, COL_VALUE],
+    rows: rows
+  });
+
+  const now = new Date();
+  const dd = String(now.getDate()).padStart(2, "0");
+  const mm = String(now.getMonth() + 1).padStart(2, "0");
+  const yyyy = String(now.getFullYear());
+  const dataGenerazione = dd + "/" + mm + "/" + yyyy;
+
+  const datePara = new Paragraph({
+    spacing: { before: 400, after: 200 },
+    children: [
+      new TextRun({
+        text: "Data generazione Draft:",
+        bold: true,
+        size: SIZE,
+        font: FONT
+      })
+    ]
+  });
+  const dateValuePara = new Paragraph({
+    spacing: { after: 200 },
+    children: [
+      new TextRun({
+        text: dataGenerazione,
+        size: SIZE,
+        font: FONT
+      })
+    ]
+  });
+
+  const signatureSpacer = new Paragraph({
+    spacing: { before: 600, after: 200 },
+    children: []
+  });
+  const signatureLine = new Paragraph({
+    spacing: { before: 200, after: 120 },
+    children: [
+      new TextRun({
+        text: "________________________________________",
+        size: SIZE,
+        font: FONT
+      })
+    ]
+  });
+  const signatureLabel = new Paragraph({
+    spacing: { after: 200 },
+    children: [
+      new TextRun({
+        text: "Firma del candidato",
+        size: SIZE,
+        font: FONT
+      })
+    ]
+  });
+
+  return {
+    title: title,
+    table: table,
+    children: [
+      title,
+      table,
+      datePara,
+      dateValuePara,
+      signatureSpacer,
+      signatureLine,
+      signatureLabel
+    ]
+  };
+}
+
+/**
+ * Alias richiesto: paragrafi/sezione Draft per il Document.
+ * @param {object} docxLib
+ * @returns {Array}
+ */
+function buildDraftWordParagraphs(docxLib) {
+  return buildDraftWordSection(docxLib).children;
+}
+
+/**
+ * Esporta esclusivamente il Draft Tecnico in .docx (modificabile in Word).
+ */
+async function handleEsportaDraftWord() {
+  if (!isDocxAvailable()) {
+    window.alert(
+      "Libreria Word non disponibile. Verificare che lib/docx.min.js sia presente."
+    );
+    return;
+  }
+
+  // Allinea AppState.draft al form prima dell'export
+  syncDraftStateFromForm();
+
+  if (!AppState.calculation) {
+    const proceed = window.confirm(
+      "Non risulta un calcolo costo personale.\n" +
+        "La remunerazione nel Draft indicherà dati non disponibili.\n\n" +
+        "Continuare comunque con l'export?"
+    );
+    if (!proceed) {
+      return;
+    }
+  }
+
+  const { Document, Packer } = window.docx;
+  const section = buildDraftWordSection(window.docx);
+
+  const doc = new Document({
+    creator: "Calcolo Costo Personale",
+    title: "DRAFT DI CONTRATTO",
+    description: "Draft Tecnico — bozza condizioni",
+    sections: [
+      {
+        properties: {
+          page: {
+            margin: { top: 720, right: 720, bottom: 720, left: 720 }
+          }
+        },
+        children: section.children
+      }
+    ]
+  });
+
+  try {
+    const blob = await Packer.toBlob(doc);
+    const stamp = new Date().toISOString().slice(0, 10);
+    const fileName = "Draft_Tecnico_" + stamp + ".docx";
+    downloadBlob(blob, fileName);
+  } catch (err) {
+    console.error(err);
+    window.alert("Errore durante la generazione del Draft Word: " + err.message);
+  }
 }
 
 /**
@@ -2055,6 +3156,11 @@ function downloadBlob(blob, fileName) {
  * Collega tutti gli event listener e imposta lo stato iniziale
  */
 function initApp() {
+  // Meta AppState
+  if (!AppState.meta.dataCreazione) {
+    AppState.meta.dataCreazione = new Date().toISOString();
+  }
+
   // Data in header
   const dataEl = document.getElementById("dataCorrente");
   if (dataEl) {
@@ -2085,6 +3191,13 @@ function initApp() {
 
   // Form: Calcola costo (REV0)
   document.getElementById("formCalcolo").addEventListener("submit", handleCalcola);
+
+  // Anteprima informativa Rate candidato (Netto / 26) — non entra nei calcoli
+  const nettoInput = document.getElementById("netto");
+  if (nettoInput) {
+    nettoInput.addEventListener("input", refreshRateCandidatoPreview);
+    nettoInput.addEventListener("change", refreshRateCandidatoPreview);
+  }
 
   // Reset costo
   document.getElementById("btnReset").addEventListener("click", handleReset);
@@ -2119,13 +3232,41 @@ function initApp() {
       radio.addEventListener("change", syncCalendarDaysVisibility);
     });
 
+  // Overtime calcolo manuale (standalone)
+  document.querySelectorAll('input[name="otMetodoManuale"]').forEach(function (radio) {
+    radio.addEventListener("change", function () {
+      syncManualOvertimeVisibility();
+      refreshOvertimeImportedPanel();
+    });
+  });
+  const otRateManuale = document.getElementById("otRateManuale");
+  if (otRateManuale) {
+    otRateManuale.addEventListener("input", refreshOvertimeImportedPanel);
+    otRateManuale.addEventListener("change", refreshOvertimeImportedPanel);
+  }
+
+  // Draft Tecnico (FASE A + B)
+  initDraftModule();
+  const btnDraftWord = document.getElementById("btnEsportaDraftWord");
+  if (btnDraftWord) {
+    btnDraftWord.addEventListener("click", function () {
+      handleEsportaDraftWord();
+    });
+  }
+
   // Modalità iniziale Italia (default già nel markup)
   applyMode("italia", { resetDefaults: true });
+  refreshRateCandidatoPreview();
 
   // Vista iniziale + pannello overtime
   switchView("costo");
   syncCalendarDaysVisibility();
+  syncManualOvertimeVisibility();
   refreshOvertimeImportedPanel();
+  refreshDraftBindings();
+
+  // REV03+ — hook bootstrap (moduli ES caricati da modules/bootstrap.js)
+  registerRev03Modules();
 
   // Avviso se manca la libreria docx (l'app resta comunque usabile)
   if (!isDocxAvailable()) {
@@ -2133,6 +3274,26 @@ function initApp() {
       "[Calcolo Costo Personale] lib/docx.min.js non caricata: export Word disabilitato fino al ripristino del file."
     );
   }
+}
+
+/**
+ * Registra i moduli REV03+ via ES dynamic import.
+ * script.js resta il bootstrap legacy; la logica nuova vive nei moduli.
+ * Non alterare formule / overtime / draft / Word.
+ */
+function registerRev03Modules() {
+  import("./modules/cvManager.js")
+    .then(function (mod) {
+      if (mod && typeof mod.initCvManager === "function") {
+        mod.initCvManager(AppState);
+      }
+    })
+    .catch(function (err) {
+      console.warn(
+        "[REV03] CV Manager non caricato (serve HTTP locale o Pages, non file://):",
+        err
+      );
+    });
 }
 
 // Avvio sicuro a DOM pronto

@@ -4,21 +4,21 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <meta name="description" content="Gestionale professionale per il calcolo del costo del personale e overtime" />
-  <title>Calcolo Costo Personale</title>
+  <title>Managing Platform</title>
   <!-- Foglio di stile principale -->
   <link rel="stylesheet" href="style.css" />
 </head>
 <body>
   <!-- ============================================================
-       HEADER AZIENDALE
+       HEADER AZIENDALE — nome app fisso (indipendente dalla scheda)
        ============================================================ -->
   <header class="app-header">
     <div class="header-inner">
       <div class="brand">
         <div class="brand-mark" aria-hidden="true"></div>
         <div class="brand-text">
-          <h1>Calcolo Costo Personale</h1>
-          <p>Gestionale costi &amp; pricing risorse</p>
+          <h1>Managing Platform</h1>
+          <p>Recruitment &amp; Pricing Suite</p>
         </div>
       </div>
       <div class="header-meta">
@@ -37,6 +37,12 @@
       </button>
       <button type="button" class="nav-tab" data-view="overtime" id="tabOvertime" aria-pressed="false">
         Calcolo overtime
+      </button>
+      <button type="button" class="nav-tab" data-view="draft" id="tabDraft" aria-pressed="false">
+        Draft Tecnico
+      </button>
+      <button type="button" class="nav-tab" data-view="cvManager" id="tabCvManager" aria-pressed="false">
+        CV Manager
       </button>
     </div>
   </nav>
@@ -88,6 +94,19 @@
                   <input type="number" id="netto" name="netto" min="0" step="0.01" placeholder="0,00" required />
                   <span class="suffix">€</span>
                 </div>
+                <p class="field-hint" id="rateCandidatoHint">
+                  Rate candidato (26 gg):
+                  <strong id="rateCandidatoPreview">—</strong>
+                </p>
+              </div>
+
+              <div class="field">
+                <label for="pocketMoney">Pocket Money</label>
+                <div class="input-currency">
+                  <input type="number" id="pocketMoney" name="pocketMoney" min="0" step="0.01" value="0" />
+                  <span class="suffix">€</span>
+                </div>
+                <p class="field-hint">Compenso imponibile. Viene sommato al netto nei calcoli (non è esentasse).</p>
               </div>
 
               <div class="field" id="fieldQuotaBase" hidden>
@@ -104,14 +123,6 @@
 
             <fieldset class="field-group">
               <legend>Indennità esentasse</legend>
-
-              <div class="field">
-                <label for="pocketMoney">Pocket Money</label>
-                <div class="input-currency">
-                  <input type="number" id="pocketMoney" name="pocketMoney" min="0" step="0.01" value="0" />
-                  <span class="suffix">€</span>
-                </div>
-              </div>
 
               <div class="field">
                 <label for="rimborsoAffitto">Rimborso Affitto</label>
@@ -173,10 +184,10 @@
               <button type="submit" class="btn btn-primary" id="btnCalcola">
                 Calcola
               </button>
-              <button type="button" class="btn btn-secondary" id="btnReset">
+              <button type="button" class="btn btn-danger" id="btnReset">
                 Reset
               </button>
-              <button type="button" class="btn btn-outline" id="btnEsportaWord" disabled>
+              <button type="button" class="btn btn-export" id="btnEsportaWord" disabled>
                 Esporta Word
               </button>
             </div>
@@ -238,21 +249,23 @@
          ========================================================== -->
     <div id="viewOvertime" class="spa-view" data-view-panel="overtime" hidden>
 
-      <!-- Messaggio se manca il calcolo costo -->
+      <!-- Avviso soft se manca calcolo costo (Overtime resta usabile in manuale) -->
       <section class="card" id="otMissingCard" hidden>
-        <h2 class="card-title">Dati non disponibili</h2>
+        <h2 class="card-title">Nessun calcolo costo importato</h2>
         <p class="card-subtitle">
-          Per calcolare l'overtime è necessario prima eseguire un calcolo nella scheda
-          <strong>Calcolo costo personale</strong>.
+          Puoi comunque calcolare l'overtime in modalità <strong>Calcolo manuale</strong>,
+          oppure eseguire prima un calcolo in <strong>Calcolo costo personale</strong> per importare i dati.
         </p>
         <div class="actions">
           <button type="button" class="btn btn-primary" id="btnVaiACosto">Vai al calcolo costo</button>
         </div>
       </section>
 
-      <div id="otContent" class="ot-stack" hidden>
+      <div id="otContent" class="ot-stack">
+        <div class="ui-flow-label" id="otFlowDati">Dati</div>
+
         <!-- DATI IMPORTATI (sola lettura da currentCalculation) -->
-        <section class="card" aria-labelledby="titolo-ot-importati">
+        <section class="card" id="otImportedCard" aria-labelledby="titolo-ot-importati">
           <h2 id="titolo-ot-importati" class="card-title">Dati importati</h2>
           <p class="card-subtitle">Valori provenienti dall'ultimo calcolo costo (sola lettura).</p>
 
@@ -285,6 +298,46 @@
         </section>
 
         <form id="formOvertime" class="ot-stack" autocomplete="off" novalidate>
+          <!-- CALCOLO MANUALE (standalone) -->
+          <section class="card card-compact" aria-labelledby="titolo-ot-manuale">
+            <h2 id="titolo-ot-manuale" class="card-title">Calcolo manuale</h2>
+            <p class="card-subtitle">
+              Opzionale. Se valorizzi il rate giornaliero, l'overtime usa solo questi dati
+              (ignora il calcolo costo). Se lasci vuoto, usa i dati importati.
+            </p>
+            <div class="layout-grid">
+              <div class="field">
+                <label for="otRateManuale">Rate giornaliero</label>
+                <div class="input-currency">
+                  <input type="number" id="otRateManuale" name="otRateManuale" min="0" step="0.01" placeholder="0,00" />
+                  <span class="suffix">€</span>
+                </div>
+              </div>
+              <div class="field">
+                <fieldset class="field-group" style="margin:0;padding:0;border:none;background:transparent;box-shadow:none;">
+                  <legend>Metodo</legend>
+                  <div class="radio-grid radio-grid-2" role="radiogroup" aria-label="Metodo calcolo manuale overtime">
+                    <label class="radio-chip">
+                      <input type="radio" name="otMetodoManuale" value="working" checked />
+                      <span>Working (26 gg)</span>
+                    </label>
+                    <label class="radio-chip">
+                      <input type="radio" name="otMetodoManuale" value="calendar" />
+                      <span>Calendar (30/31 gg)</span>
+                    </label>
+                  </div>
+                  <div class="field" id="fieldGiorniManuale" hidden>
+                    <label for="otGiorniManuale">Giorni calendar</label>
+                    <div class="input-currency">
+                      <input type="number" id="otGiorniManuale" name="otGiorniManuale" min="1" step="1" value="30" />
+                      <span class="suffix">gg</span>
+                    </div>
+                  </div>
+                </fieldset>
+              </div>
+            </div>
+          </section>
+
           <!-- Parametro condiviso: ore giornaliere -->
           <section class="card card-compact">
             <div class="ot-common-row">
@@ -301,6 +354,11 @@
               </div>
             </div>
           </section>
+
+          <div class="ui-flow-pair" aria-hidden="true">
+            <div class="ui-flow-label">Overtime tecnico</div>
+            <div class="ui-flow-label">Overtime cliente</div>
+          </div>
 
           <div class="layout-grid ot-config-grid">
             <!-- ========== OVERTIME TECNICO (indipendente) ========== -->
@@ -410,14 +468,16 @@
             <button type="submit" class="btn btn-primary" id="btnCalcolaOvertime">
               Calcola overtime
             </button>
-            <button type="button" class="btn btn-secondary" id="btnResetOvertime">
+            <button type="button" class="btn btn-danger" id="btnResetOvertime">
               Reset overtime
             </button>
-            <button type="button" class="btn btn-outline" id="btnEsportaWordOt" disabled>
+            <button type="button" class="btn btn-export" id="btnEsportaWordOt" disabled>
               Esporta Word
             </button>
           </div>
         </form>
+
+        <div class="ui-flow-label" id="otFlowRisultato">Risultato</div>
 
         <!-- RISULTATO OVERTIME -->
         <section class="card" aria-labelledby="titolo-ot-risultato">
@@ -466,18 +526,517 @@
         </section>
       </div>
     </div>
+
+    <!-- ==========================================================
+         VIEW 3 — DRAFT TECNICO (FASE A: UI + AppState.draft)
+         ========================================================== -->
+    <div id="viewDraft" class="spa-view" data-view-panel="draft" hidden>
+
+      <form id="formDraft" class="draft-stack" autocomplete="off" novalidate>
+
+        <!-- DATI GENERALI -->
+        <section class="card" aria-labelledby="titolo-draft-generali">
+          <h2 id="titolo-draft-generali" class="card-title">Dati generali</h2>
+          <p class="card-subtitle">Informazioni di base della bozza tecnica.</p>
+
+          <div class="field">
+            <label for="draftPosizione">Posizione</label>
+            <input type="text" id="draftPosizione" name="draftPosizione" placeholder="Es. Technician / Supervisor" />
+          </div>
+
+          <div class="field">
+            <label for="draftLocalita">Località</label>
+            <input type="text" id="draftLocalita" name="draftLocalita" placeholder="Es. Milano / Offshore" />
+          </div>
+
+          <div class="field">
+            <label for="draftProgetto">Progetto</label>
+            <input type="text" id="draftProgetto" name="draftProgetto" placeholder="Nome o codice progetto" />
+          </div>
+
+          <fieldset class="field-group">
+            <legend>Periodo progetto</legend>
+            <div class="radio-grid radio-grid-2" role="radiogroup" aria-label="Modalità periodo progetto">
+              <label class="radio-chip">
+                <input type="radio" name="draftPeriodoMode" value="calendar" checked />
+                <span>Calendario</span>
+              </label>
+              <label class="radio-chip">
+                <input type="radio" name="draftPeriodoMode" value="text" />
+                <span>Testo indicativo</span>
+              </label>
+            </div>
+
+            <div class="draft-periodo-calendar" id="draftPeriodoCalendarBlock">
+              <div class="layout-grid">
+                <div class="field">
+                  <label for="draftPeriodoDa">Dal</label>
+                  <input type="date" id="draftPeriodoDa" name="draftPeriodoDa" />
+                </div>
+                <div class="field">
+                  <label for="draftPeriodoA">Al</label>
+                  <input type="date" id="draftPeriodoA" name="draftPeriodoA" />
+                </div>
+              </div>
+            </div>
+
+            <div class="field" id="draftPeriodoTextBlock" hidden>
+              <label for="draftPeriodoTesto">Periodo indicativo</label>
+              <input type="text" id="draftPeriodoTesto" name="draftPeriodoTesto" placeholder="Es. Q3 2026 / circa 6 mesi" />
+            </div>
+          </fieldset>
+        </section>
+
+        <!-- ORARIO E ROTAZIONE -->
+        <section class="card" aria-labelledby="titolo-draft-orario">
+          <h2 id="titolo-draft-orario" class="card-title">Orario e rotazione</h2>
+          <p class="card-subtitle">Schema orario e turnazione previsti.</p>
+
+          <fieldset class="field-group">
+            <legend>Orario lavoro</legend>
+            <div class="radio-grid radio-grid-2" role="radiogroup" aria-label="Orario lavoro">
+              <label class="radio-chip">
+                <input type="radio" name="draftOrario" value="60h6" />
+                <span>60h / 6gg</span>
+              </label>
+              <label class="radio-chip">
+                <input type="radio" name="draftOrario" value="48h6" />
+                <span>48h / 6gg</span>
+              </label>
+              <label class="radio-chip">
+                <input type="radio" name="draftOrario" value="40h5" checked />
+                <span>40h / 5gg</span>
+              </label>
+              <label class="radio-chip">
+                <input type="radio" name="draftOrario" value="custom" />
+                <span>Personalizzato</span>
+              </label>
+            </div>
+            <div class="field" id="draftOrarioCustomBlock" hidden>
+              <label for="draftOrarioCustom">Orario personalizzato</label>
+              <input type="text" id="draftOrarioCustom" name="draftOrarioCustom" placeholder="Es. 42h / 6gg" />
+            </div>
+          </fieldset>
+
+          <fieldset class="field-group field-group-last">
+            <legend>Turnazione</legend>
+            <div class="radio-grid radio-grid-2" role="radiogroup" aria-label="Turnazione">
+              <label class="radio-chip">
+                <input type="radio" name="draftTurnazioneMode" value="free" checked />
+                <span>Formato libero</span>
+              </label>
+              <label class="radio-chip">
+                <input type="radio" name="draftTurnazioneMode" value="tbd" />
+                <span>TBD</span>
+              </label>
+              <label class="radio-chip">
+                <input type="radio" name="draftTurnazioneMode" value="na" />
+                <span>N/A</span>
+              </label>
+            </div>
+            <div class="field" id="draftTurnazioneFreeBlock">
+              <label for="draftTurnazione">Schema turnazione</label>
+              <input type="text" id="draftTurnazione" name="draftTurnazione" placeholder="Es. 90/15" />
+            </div>
+          </fieldset>
+        </section>
+
+        <!-- CONDIZIONI ECONOMICHE -->
+        <section class="card" aria-labelledby="titolo-draft-economiche">
+          <h2 id="titolo-draft-economiche" class="card-title">Condizioni economiche</h2>
+          <p class="card-subtitle">Straordinari, benefit e remunerazione collegata al calcolo costo.</p>
+
+          <fieldset class="field-group">
+            <legend>Straordinari</legend>
+            <div class="radio-grid radio-grid-2" role="radiogroup" aria-label="Straordinari">
+              <label class="radio-chip">
+                <input type="radio" name="draftStraordinari" value="auto" checked />
+                <span>Automatico da OT tecnico</span>
+              </label>
+              <label class="radio-chip">
+                <input type="radio" name="draftStraordinari" value="manual" />
+                <span>Manuale</span>
+              </label>
+              <label class="radio-chip">
+                <input type="radio" name="draftStraordinari" value="formula10" />
+                <span>Formula 1/10 rate giornaliero</span>
+              </label>
+              <label class="radio-chip">
+                <input type="radio" name="draftStraordinari" value="na" />
+                <span>N/A</span>
+              </label>
+            </div>
+            <div class="field" id="draftStraordinariManualBlock" hidden>
+              <label for="draftStraordinariManuale">Valore straordinari (manuale)</label>
+              <input type="text" id="draftStraordinariManuale" name="draftStraordinariManuale" placeholder="Es. 25 €/ora" />
+            </div>
+            <div class="imported-item draft-bound-item" id="draftOtBoundBlock">
+              <span class="imported-label">OT tecnico collegato (sola lettura)</span>
+              <span class="imported-value" id="draftOtTecnico">—</span>
+              <p class="field-hint" id="draftOtHint">Predisposto: si aggiorna quando esiste un calcolo overtime.</p>
+            </div>
+          </fieldset>
+
+          <fieldset class="field-group">
+            <legend>Alloggio</legend>
+            <div class="radio-grid radio-grid-2" role="radiogroup" aria-label="Alloggio">
+              <label class="radio-chip">
+                <input type="radio" name="draftAlloggio" value="cliente" checked />
+                <span>Cliente</span>
+              </label>
+              <label class="radio-chip">
+                <input type="radio" name="draftAlloggio" value="candidato" />
+                <span>Candidato</span>
+              </label>
+              <label class="radio-chip">
+                <input type="radio" name="draftAlloggio" value="contributo" />
+                <span>Contributo massimo</span>
+              </label>
+              <label class="radio-chip">
+                <input type="radio" name="draftAlloggio" value="personalizzato" />
+                <span>Personalizzato</span>
+              </label>
+            </div>
+            <div class="field" id="draftAlloggioDetailBlock" hidden>
+              <label for="draftAlloggioDettaglio">Dettaglio alloggio</label>
+              <input type="text" id="draftAlloggioDettaglio" name="draftAlloggioDettaglio" placeholder="Importo o note" />
+            </div>
+          </fieldset>
+
+          <fieldset class="field-group">
+            <legend>Trasporti locali</legend>
+            <div class="radio-grid radio-grid-2" role="radiogroup" aria-label="Trasporti locali">
+              <label class="radio-chip">
+                <input type="radio" name="draftTrasporti" value="cliente" checked />
+                <span>Cliente</span>
+              </label>
+              <label class="radio-chip">
+                <input type="radio" name="draftTrasporti" value="candidato" />
+                <span>Candidato</span>
+              </label>
+              <label class="radio-chip">
+                <input type="radio" name="draftTrasporti" value="renting" />
+                <span>Renting auto city car a nostro carico</span>
+              </label>
+              <label class="radio-chip">
+                <input type="radio" name="draftTrasporti" value="personalizzato" />
+                <span>Personalizzato</span>
+              </label>
+            </div>
+            <div class="field" id="draftTrasportiDetailBlock" hidden>
+              <label for="draftTrasportiDettaglio">Dettaglio trasporti</label>
+              <input type="text" id="draftTrasportiDettaglio" name="draftTrasportiDettaglio" placeholder="Note o condizioni" />
+            </div>
+          </fieldset>
+
+          <div class="imported-item draft-bound-item" id="draftPocketBlock" hidden>
+            <span class="imported-label">Pocket Money</span>
+            <span class="imported-value" id="draftPocketValue">—</span>
+            <p class="field-hint">Automatico: Pocket mensile ÷ 30 (calendar day). Visibile solo se &gt; 0.</p>
+          </div>
+
+          <fieldset class="field-group">
+            <legend>Mob / Demob</legend>
+            <div class="radio-grid radio-grid-2" role="radiogroup" aria-label="Mob Demob">
+              <label class="radio-chip">
+                <input type="radio" name="draftMobDemob" value="standard" checked />
+                <span>Standard</span>
+              </label>
+              <label class="radio-chip">
+                <input type="radio" name="draftMobDemob" value="na" />
+                <span>N/A</span>
+              </label>
+            </div>
+            <label class="checkbox-row" for="draftVoliNostroCarico">
+              <input type="checkbox" id="draftVoliNostroCarico" name="draftVoliNostroCarico" />
+              <span>Voli a nostro carico</span>
+            </label>
+          </fieldset>
+
+          <fieldset class="field-group">
+            <legend>Giorni viaggio</legend>
+            <div class="radio-grid radio-grid-2" role="radiogroup" aria-label="Giorni viaggio">
+              <label class="radio-chip">
+                <input type="radio" name="draftGiorniViaggio" value="100" checked />
+                <span>100%</span>
+              </label>
+              <label class="radio-chip">
+                <input type="radio" name="draftGiorniViaggio" value="50" />
+                <span>50%</span>
+              </label>
+              <label class="radio-chip">
+                <input type="radio" name="draftGiorniViaggio" value="na" />
+                <span>N/A</span>
+              </label>
+            </div>
+          </fieldset>
+
+          <fieldset class="field-group">
+            <legend>Contratto</legend>
+            <p class="field-hint draft-contract-fixed">CCNL Commercio</p>
+            <div class="radio-grid radio-grid-2" role="radiogroup" aria-label="Livello contratto">
+              <label class="radio-chip">
+                <input type="radio" name="draftContrattoLivello" value="1" checked />
+                <span>Livello 1°</span>
+              </label>
+              <label class="radio-chip">
+                <input type="radio" name="draftContrattoLivello" value="2" />
+                <span>Livello 2°</span>
+              </label>
+            </div>
+          </fieldset>
+
+          <fieldset class="field-group field-group-last">
+            <legend>Remunerazione</legend>
+            <p class="field-hint" id="draftRemHint">
+              Valori automatici da AppState.calculation (sola lettura).
+            </p>
+            <div class="imported-grid" id="draftRemGrid">
+              <div class="imported-item">
+                <span class="imported-label">Netto mensile</span>
+                <span class="imported-value" id="draftRemNetto">—</span>
+              </div>
+              <div class="imported-item">
+                <span class="imported-label">Rate candidato (26)</span>
+                <span class="imported-value" id="draftRemRate26">—</span>
+              </div>
+            </div>
+            <p class="draft-warning" id="draftRemMissing" hidden>
+              Dati non disponibili: esegui prima un calcolo in <strong>Calcolo costo personale</strong>.
+            </p>
+          </fieldset>
+        </section>
+
+      </form>
+
+      <div class="actions draft-actions">
+        <button type="button" class="btn btn-export" id="btnEsportaDraftWord">
+          Esporta Draft Word
+        </button>
+      </div>
+    </div>
+
+    <!-- ==========================================================
+         VIEW 4 — CV MANAGER (REV03 FASE A — infrastruttura)
+         ========================================================== -->
+    <div id="viewCvManager" class="spa-view" data-view-panel="cvManager" hidden>
+
+      <div class="cv-stack">
+
+        <!-- MACRO 1 — PREPARAZIONE -->
+        <div class="ui-macro" aria-labelledby="cv-macro-prep">
+          <div class="ui-macro-title" id="cv-macro-prep">Preparazione</div>
+
+          <!-- CARD 1 — Template aziendale -->
+          <section class="card" aria-labelledby="titolo-cv-template">
+            <h2 id="titolo-cv-template" class="card-title">Template Aziendale</h2>
+            <p class="card-subtitle">
+              Il template viene caricato una sola volta e sarà utilizzato per la generazione di tutti i CV.
+            </p>
+            <p class="cv-status" id="cvTemplateStatus">Nessun template caricato.</p>
+            <div class="imported-grid" id="cvTemplateMeta" hidden>
+              <div class="imported-item">
+                <span class="imported-label">Nome file</span>
+                <span class="imported-value" id="cvTemplateName">—</span>
+              </div>
+              <div class="imported-item">
+                <span class="imported-label">Dimensione</span>
+                <span class="imported-value" id="cvTemplateSize">—</span>
+              </div>
+            </div>
+            <div class="actions cv-card-actions">
+              <button type="button" class="btn btn-primary" id="btnCvCaricaTemplate">
+                Carica Template
+              </button>
+              <button type="button" class="btn btn-secondary" id="btnCvSostituisciTemplate" hidden>
+                Sostituisci Template
+              </button>
+            </div>
+            <input type="file" id="cvTemplateInput" accept=".docx,application/vnd.openxmlformats-officedocument.wordprocessingml.document" hidden />
+            <p class="cv-hint">Formato consentito: DOCX. Qualsiasi template aziendale è accettato (logo, header e footer vengono conservati).</p>
+            <div class="actions cv-card-actions">
+              <button type="button" class="btn btn-secondary" id="btnCvCaricaTemplateDefault">
+                Usa template predefinito
+              </button>
+            </div>
+          </section>
+
+          <!-- CARD 2 — Curriculum -->
+          <section class="card" aria-labelledby="titolo-cv-file">
+            <h2 id="titolo-cv-file" class="card-title">Curriculum</h2>
+            <p class="card-subtitle">Carica il curriculum del candidato (DOCX o PDF con testo selezionabile).</p>
+            <p class="cv-status" id="cvFileEmpty">Nessun curriculum caricato.</p>
+            <div class="imported-grid" id="cvFileMeta" hidden>
+              <div class="imported-item">
+                <span class="imported-label">Nome file</span>
+                <span class="imported-value" id="cvFileName">—</span>
+              </div>
+              <div class="imported-item">
+                <span class="imported-label">Tipo</span>
+                <span class="imported-value" id="cvFileType">—</span>
+              </div>
+              <div class="imported-item">
+                <span class="imported-label">Dimensione</span>
+                <span class="imported-value" id="cvFileSize">—</span>
+              </div>
+              <div class="imported-item">
+                <span class="imported-label">Lingua</span>
+                <span class="imported-value" id="cvFileLanguage">Non ancora analizzata</span>
+              </div>
+            </div>
+            <div class="actions cv-card-actions">
+              <button type="button" class="btn btn-primary" id="btnCvCaricaCurriculum">
+                Carica Curriculum
+              </button>
+            </div>
+            <input type="file" id="cvFileInput" accept=".docx,.pdf,application/pdf,application/vnd.openxmlformats-officedocument.wordprocessingml.document" hidden />
+            <p class="cv-hint">Formati supportati: DOCX, PDF. Il formato DOC non è ancora supportato.</p>
+          </section>
+
+          <!-- CARD 3 — Lingua output -->
+          <section class="card" aria-labelledby="titolo-cv-lingua">
+            <h2 id="titolo-cv-lingua" class="card-title">Lingua output</h2>
+            <p class="card-subtitle">Lingua del CV aziendale generato.</p>
+            <fieldset class="field-group">
+              <legend>Seleziona lingua</legend>
+              <div class="radio-grid radio-grid-2" role="radiogroup" aria-label="Lingua output CV">
+                <label class="radio-chip">
+                  <input type="radio" name="cvOutputLanguage" value="same" checked />
+                  <span>Stessa lingua</span>
+                </label>
+                <label class="radio-chip">
+                  <input type="radio" name="cvOutputLanguage" value="it" />
+                  <span>Italiano</span>
+                </label>
+                <label class="radio-chip">
+                  <input type="radio" name="cvOutputLanguage" value="en" />
+                  <span>Inglese</span>
+                </label>
+              </div>
+            </fieldset>
+          </section>
+        </div>
+
+        <!-- MACRO 2 — CONFIGURAZIONE AI (comprimibile) -->
+        <div class="ui-macro" aria-labelledby="cv-macro-ai">
+          <div class="ui-macro-title" id="cv-macro-ai">Configurazione AI</div>
+
+          <section class="card card-collapse" aria-labelledby="cv-macro-ai">
+            <p class="card-subtitle">OpenAI — modalità sicura predefinita; chiave mai in AppState né nel codice.</p>
+            <p class="cv-hint cv-health" id="cvBackendHealth" role="status">Stato backend in attesa di verifica.</p>
+            <div class="actions cv-card-actions">
+              <button type="button" class="btn btn-secondary" id="btnCvVerificaBackend">
+                Verifica backend
+              </button>
+            </div>
+
+            <details class="ui-collapse">
+              <summary class="ui-collapse-summary">Mostra impostazioni</summary>
+              <div class="ui-collapse-body">
+                <fieldset class="field-group">
+                  <legend>Modalità connessione</legend>
+                  <div class="radio-grid radio-grid-2" role="radiogroup" aria-label="Modalità connessione AI">
+                    <label class="radio-chip">
+                      <input type="radio" name="cvConnectionMode" id="cvModeSecure" value="secure" checked />
+                      <span>Sicura (backend)</span>
+                    </label>
+                    <label class="radio-chip">
+                      <input type="radio" name="cvConnectionMode" id="cvModeLocal" value="localDev" />
+                      <span>Locale temporanea (solo sviluppo)</span>
+                    </label>
+                  </div>
+                  <p class="cv-hint" id="cvLocalDevWarning">
+                    La modalità locale è disponibile solo su localhost / file locale e deve restare disabilitata in pubblicazione.
+                  </p>
+                </fieldset>
+
+                <div class="field">
+                  <label for="cvSecureEndpoint">Endpoint sicuro</label>
+                  <input type="text" id="cvSecureEndpoint" name="cvSecureEndpoint" value="/api/analyze-cv" />
+                  <p class="cv-hint">Usato in modalità sicura. La API key resta solo sul backend.</p>
+                </div>
+
+                <div id="cvLocalDevBlock" hidden>
+                  <p class="cv-local-banner" role="status">Solo sviluppo locale — non usare in produzione</p>
+                  <div class="field">
+                    <label for="cvApiKey">API Key (locale)</label>
+                    <div class="cv-api-row">
+                      <input type="password" id="cvApiKey" name="cvApiKey" autocomplete="off" placeholder="sk-…" />
+                      <button type="button" class="btn btn-secondary" id="btnCvToggleApiKey" aria-pressed="false">
+                        Mostra
+                      </button>
+                    </div>
+                    <p class="cv-hint" id="cvApiKeyHint">Nessuna API Key salvata in locale.</p>
+                  </div>
+                </div>
+
+                <div class="field">
+                  <label for="cvModel">Modello</label>
+                  <input type="text" id="cvModel" name="cvModel" value="gpt-5.5" />
+                </div>
+                <div class="actions cv-card-actions">
+                  <button type="button" class="btn btn-primary" id="btnCvSalvaAi">
+                    Salva
+                  </button>
+                </div>
+                <p class="cv-status cv-save-msg" id="cvAiSaveMsg" hidden></p>
+              </div>
+            </details>
+          </section>
+        </div>
+
+        <!-- MACRO 3 — GENERAZIONE -->
+        <div class="ui-macro" aria-labelledby="cv-macro-gen">
+          <div class="ui-macro-title" id="cv-macro-gen">Generazione</div>
+
+          <!-- CARD 5 — Stato elaborazione (compatta, FASE B2) -->
+          <section class="card" aria-labelledby="titolo-cv-preview">
+            <h2 id="titolo-cv-preview" class="card-title">Stato elaborazione</h2>
+            <p class="card-subtitle">Riepilogo sintetico. Le modifiche di dettaglio si effettuano nel Word finale.</p>
+            <p class="cv-pipeline-status" id="cvStatusHeadline">Nessun CV ancora elaborato.</p>
+            <div class="cv-preview" id="cvPreviewBody"></div>
+          </section>
+
+          <!-- CARD 6 — Azioni -->
+          <section class="card" aria-labelledby="titolo-cv-azioni">
+            <h2 id="titolo-cv-azioni" class="card-title">Azioni</h2>
+            <p class="card-subtitle">Analisi AI e generazione del CV aziendale in un unico passaggio.</p>
+            <p class="cv-busy" id="cvBusyIndicator" hidden>Operazione in corso…</p>
+            <p class="cv-status" id="cvAiReadinessMsg" hidden></p>
+            <p class="cv-status" id="cvActionStatus" hidden></p>
+            <div class="actions cv-card-actions">
+              <button type="button" class="btn btn-primary" id="btnCvAnalizzaGenera" disabled aria-disabled="true">
+                Analizza e genera CV
+              </button>
+              <button type="button" class="btn btn-secondary" id="btnCvNuovo" disabled>
+                Nuovo CV
+              </button>
+              <button type="button" class="btn btn-secondary" id="btnCvRigenera" hidden disabled aria-disabled="true">
+                Rigenera documento
+              </button>
+            </div>
+            <div class="actions cv-card-actions" id="cvDownloadActions" hidden>
+              <button type="button" class="btn btn-export" id="btnCvScarica" disabled aria-disabled="true">
+                Scarica CV Aziendale
+              </button>
+            </div>
+          </section>
+        </div>
+
+      </div>
+    </div>
   </main>
 
   <footer class="app-footer">
     <p>
-      Calcolo Costo Personale — applicazione locale, senza server e senza database.
+      Managing Platform — applicazione locale, senza server e senza database.
       <span class="footer-credit">Crafted with Cursor by Lorenzo Coluccelli</span>
     </p>
   </footer>
 
   <!-- Libreria docx (browser, senza Node.js) per export .docx -->
   <script src="lib/docx.min.js"></script>
-  <!-- Logica applicativa -->
+  <!-- Logica applicativa legacy (REV02_STABLE) + registrazione moduli REV03 -->
   <script src="script.js"></script>
 </body>
 </html>
