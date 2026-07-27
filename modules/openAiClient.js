@@ -1,17 +1,14 @@
 /**
- * Client AI CV (REV03 FASE B1)
- * Modalità secure (default): endpoint backend /api/analyze-cv
- * Modalità localDev: chiamata diretta OpenAI Responses API (solo sviluppo locale)
- *
- * SECURITY: direct browser API access is allowed only for local development
- * and must never be deployed publicly.
+ * Client AI CV (REV03)
+ * Modalità secure (default su localhost con backend): endpoint /api/analyze-cv
+ * Modalità Browser (localDev): chiamata diretta OpenAI — consentita su localhost e GitHub Pages
  */
 
 import {
   AI_MODE_LOCAL,
   AI_MODE_SECURE,
   getLocalApiKey,
-  isPublicDeploy,
+  isBrowserAiAllowed,
   loadAiSettings
 } from "../settings/aiSettings.js";
 import {
@@ -24,17 +21,17 @@ const OPENAI_RESPONSES_URL = "https://api.openai.com/v1/responses";
 const DEFAULT_TIMEOUT_MS = 90000;
 
 export const AI_ERROR_MESSAGES = Object.freeze({
-  missing_key: "Configurare l’accesso OpenAI prima di analizzare il CV.",
-  auth: "Autenticazione OpenAI non riuscita. Verificare la configurazione.",
-  quota: "Credito API insufficiente o limite di utilizzo raggiunto.",
-  rate_limit: "Limite temporaneo raggiunto. Riprovare tra poco.",
+  missing_key: "Inserire una API key per utilizzare il CV Manager.",
+  auth: "API key non valida o non autorizzata.",
+  quota: "Limite API raggiunto. Verificare disponibilità e fatturazione.",
+  rate_limit: "Limite API raggiunto. Verificare disponibilità e fatturazione.",
   timeout: "La richiesta ha impiegato troppo tempo. Riprovare.",
   invalid_json: "La risposta AI non rispetta il formato previsto. Ripetere l’analisi.",
   empty: "La risposta AI non rispetta il formato previsto. Ripetere l’analisi.",
-  network: "Non è stato possibile analizzare il CV. Nessuna modifica è stata apportata.",
+  network: "Servizio AI temporaneamente non disponibile.",
   generic: "Non è stato possibile analizzare il CV. Nessuna modifica è stata apportata.",
-  local_forbidden:
-    "La modalità locale non è disponibile in pubblicazione. Usare l’endpoint sicuro."
+  browser_forbidden: "La modalità Browser non è disponibile su questo host.",
+  local_forbidden: "La modalità Browser non è disponibile su questo host."
 });
 
 /**
@@ -265,16 +262,16 @@ async function analyzeViaSecureEndpoint(cvText, options) {
 }
 
 /**
- * SECURITY: direct browser API access is allowed only for local development
- * and must never be deployed publicly.
+ * Chiamata diretta OpenAI dal browser (modalità Browser).
+ * Consentita solo dove isBrowserAiAllowed() è true.
  *
  * @param {string} cvText
  * @param {object} options
  * @returns {Promise<object>}
  */
 async function analyzeViaLocalOpenAi(cvText, options) {
-  if (isPublicDeploy()) {
-    throw createAiError("local_forbidden");
+  if (!isBrowserAiAllowed()) {
+    throw createAiError("browser_forbidden");
   }
 
   const apiKey = options.apiKey || getLocalApiKey();
@@ -370,7 +367,7 @@ export async function analyzeCvWithAI(cvText, options) {
 
   const settings = loadAiSettings();
   let mode = opts.connectionMode || settings.connectionMode || AI_MODE_SECURE;
-  if (mode === AI_MODE_LOCAL && isPublicDeploy()) {
+  if (mode === AI_MODE_LOCAL && !isBrowserAiAllowed()) {
     mode = AI_MODE_SECURE;
   }
 

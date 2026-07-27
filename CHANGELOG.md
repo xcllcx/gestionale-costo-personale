@@ -1,5 +1,14 @@
 # CHANGELOG
 
+## REV03_SHARED — Browser AI su GitHub Pages (2026-07-27)
+
+### Changed
+- Modalità Browser (API key personale) consentita su `*.github.io` oltre a localhost/file
+- Helper centralizzato `isBrowserAiAllowed()`
+- Secure resta disponibile in locale; su Pages non pronta senza backend
+- Opzione “Non salvare la chiave su questo dispositivo”
+- Messaggi errore AI allineati (401/429/rete)
+
 ## REV03_SHARED (2026-07-27)
 
 ### Added

@@ -18,9 +18,9 @@ Link: https://xcllcx.github.io/gestionale-costo-personale/
 ### CV Manager (su GitHub Pages)
 
 - Interfaccia disponibile
-- Funzione AI **non** disponibile (nessun backend su Pages)
-- Messaggio informativo: *La funzione AI del CV Manager è disponibile esclusivamente nella versione locale.*
-- Upload template / CV e operazioni non-AI restano accessibili dove non richiedono OpenAI
+- Modalità **Browser — API key personale**: ogni utente inserisce la propria chiave (mai nel repository)
+- Modalità Sicura non disponibile (Pages non esegue Express)
+- Opzione per non salvare la chiave sul dispositivo (solo memoria di sessione)
 
 ## Avvio locale completo (CV Manager AI)
 

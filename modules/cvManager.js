@@ -9,6 +9,7 @@ import {
   AI_DEFAULT_SECURE_ENDPOINT,
   AI_MODE_LOCAL,
   AI_MODE_SECURE,
+  BROWSER_AI_SECURITY_HINT,
   STATIC_HOST_AI_MESSAGE,
   applyStaticHostBackendState,
   checkBackendHealth,
@@ -16,8 +17,8 @@ import {
   getBackendHealth,
   getLocalApiKey,
   getMaskedApiKeyHint,
-  isLocalDevHost,
-  isPublicDeploy,
+  getPersistApiKeyPreference,
+  isBrowserAiAllowed,
   isStaticHostWithoutBackend,
   loadAiSettings,
   saveAiSettings
@@ -319,28 +320,39 @@ function renderOutputLanguage(cv) {
 function renderAiSettings(opts) {
   const options = opts || {};
   const settings = loadAiSettings();
-  const publicDeploy = isPublicDeploy();
-  const localAllowed = isLocalDevHost() && !publicDeploy;
+  const browserAllowed = isBrowserAiAllowed();
+  const browserMode = settings.connectionMode === AI_MODE_LOCAL && browserAllowed;
 
   const modeSecure = $("cvModeSecure");
   const modeLocal = $("cvModeLocal");
   const localBlock = $("cvLocalDevBlock");
   const endpointInput = $("cvSecureEndpoint");
+  const endpointField = endpointInput ? endpointInput.closest(".field") : null;
   const modelInput = $("cvModel");
   const apiInput = $("cvApiKey");
   const hint = $("cvApiKeyHint");
   const toggleBtn = $("btnCvToggleApiKey");
   const localWarning = $("cvLocalDevWarning");
+  const persistChk = $("cvDontPersistApiKey");
+  const clearBtn = $("btnCvClearApiKey");
 
-  if (modeSecure) modeSecure.checked = settings.connectionMode !== AI_MODE_LOCAL;
+  if (modeSecure) modeSecure.checked = !browserMode;
   if (modeLocal) {
-    modeLocal.disabled = !localAllowed;
-    modeLocal.checked = settings.connectionMode === AI_MODE_LOCAL && localAllowed;
+    modeLocal.disabled = !browserAllowed || !!busy;
+    modeLocal.checked = browserMode;
   }
   if (localBlock) {
-    localBlock.hidden = !(settings.connectionMode === AI_MODE_LOCAL && localAllowed);
+    localBlock.hidden = !browserMode;
   }
-  if (localWarning) localWarning.hidden = !localAllowed;
+  if (localWarning) {
+    localWarning.hidden = !browserMode;
+    if (browserMode) {
+      localWarning.textContent = BROWSER_AI_SECURITY_HINT;
+    }
+  }
+  if (endpointField) {
+    endpointField.hidden = browserMode;
+  }
 
   if (endpointInput && document.activeElement !== endpointInput) {
     endpointInput.value = settings.secureEndpoint || AI_DEFAULT_SECURE_ENDPOINT;
@@ -356,29 +368,43 @@ function renderAiSettings(opts) {
       apiInput.value = getLocalApiKey();
     }
   }
+  if (persistChk) {
+    persistChk.checked = !getPersistApiKeyPreference();
+  }
   if (hint) {
     const masked = getMaskedApiKeyHint();
-    hint.textContent = masked
-      ? "Chiave salvata localmente (mascherata): " + masked
-      : "Nessuna API Key salvata in locale.";
+    const persist = getPersistApiKeyPreference();
+    if (masked && persist) {
+      hint.textContent =
+        "Chiave memorizzata su questo dispositivo (mascherata): " +
+        masked +
+        ". Resta solo su questo browser.";
+    } else if (masked && !persist) {
+      hint.textContent = "Chiave presente solo in memoria di sessione (non salvata sul dispositivo).";
+    } else {
+      hint.textContent = "Nessuna API Key presente.";
+    }
   }
   if (toggleBtn) {
     toggleBtn.textContent = reveal ? "Nascondi" : "Mostra";
     toggleBtn.setAttribute("aria-pressed", reveal ? "true" : "false");
   }
+  if (clearBtn) {
+    clearBtn.disabled = !!busy || !getLocalApiKey();
+  }
 
   // Disabilita cambio modalità durante elaborazione
   if (modeSecure) modeSecure.disabled = !!busy;
-  if (modeLocal) modeLocal.disabled = !localAllowed || !!busy;
+  if (modeLocal) modeLocal.disabled = !browserAllowed || !!busy;
 
   const healthEl = $("cvBackendHealth");
   if (healthEl) {
-    if (isStaticHostWithoutBackend()) {
+    if (browserMode) {
+      healthEl.textContent = "Modalità Browser attiva — chiamata diretta a OpenAI.";
+      healthEl.className = "cv-hint cv-health cv-health-local";
+    } else if (isStaticHostWithoutBackend()) {
       healthEl.textContent = STATIC_HOST_AI_MESSAGE;
       healthEl.className = "cv-hint cv-health cv-health-pages";
-    } else if (settings.connectionMode === AI_MODE_LOCAL && localAllowed) {
-      healthEl.textContent = "Modalità sviluppo locale (API key solo nel browser).";
-      healthEl.className = "cv-hint cv-health cv-health-local";
     } else {
       const health = getBackendHealth();
       const readiness = getAiConfigReadiness();
@@ -400,8 +426,10 @@ function renderAiSettings(opts) {
 
   const btnHealth = $("btnCvVerificaBackend");
   if (btnHealth) {
-    btnHealth.hidden = isStaticHostWithoutBackend();
-    btnHealth.disabled = isStaticHostWithoutBackend() || !!busy;
+    // Health solo per Secure e solo dove ha senso (non su Pages statico)
+    const showHealth = !browserMode && !isStaticHostWithoutBackend();
+    btnHealth.hidden = !showHealth;
+    btnHealth.disabled = !showHealth || !!busy;
   }
 }
 
@@ -629,7 +657,7 @@ async function analyzeAndGenerate(cv) {
   }
   const readiness = getAiConfigReadiness();
   if (!readiness.ok) {
-    setStatusMessage(AI_ERROR_MESSAGES.missing_key, true);
+    setStatusMessage(readiness.message || AI_ERROR_MESSAGES.missing_key, true);
     return;
   }
 
@@ -851,7 +879,8 @@ function bindUi(cv) {
       apiKeyRevealed = false;
       renderAiSettings({ reveal: false });
       updateActionButtons(cv);
-      if (mode === AI_MODE_SECURE) {
+      // Health solo in Secure e solo se non host statico
+      if (mode === AI_MODE_SECURE && !isStaticHostWithoutBackend()) {
         refreshBackendHealth(cv);
       }
     });
@@ -864,16 +893,19 @@ function bindUi(cv) {
       const modelInput = $("cvModel");
       const endpointInput = $("cvSecureEndpoint");
       const modeLocal = $("cvModeLocal");
+      const persistChk = $("cvDontPersistApiKey");
       const mode =
-        modeLocal && modeLocal.checked && isLocalDevHost()
+        modeLocal && modeLocal.checked && isBrowserAiAllowed()
           ? AI_MODE_LOCAL
           : AI_MODE_SECURE;
+      const persistApiKey = !(persistChk && persistChk.checked);
       const saved = saveAiSettings({
         connectionMode: mode,
         model: modelInput ? modelInput.value.trim() : AI_DEFAULT_MODEL,
         secureEndpoint: endpointInput
           ? endpointInput.value.trim()
           : AI_DEFAULT_SECURE_ENDPOINT,
+        persistApiKey: persistApiKey,
         apiKey: mode === AI_MODE_LOCAL && apiInput ? apiInput.value.trim() : undefined
       });
       cv.model = saved.model;
@@ -883,7 +915,9 @@ function bindUi(cv) {
       const msg = $("cvAiSaveMsg");
       if (msg) {
         msg.hidden = false;
-        msg.textContent = "Configurazione salvata nel browser.";
+        msg.textContent = persistApiKey
+          ? "Configurazione salvata su questo dispositivo."
+          : "Configurazione salvata (API key solo in memoria di sessione).";
       }
     });
   }
@@ -893,6 +927,19 @@ function bindUi(cv) {
     btnToggle.addEventListener("click", function () {
       apiKeyRevealed = !apiKeyRevealed;
       renderAiSettings({ reveal: apiKeyRevealed });
+    });
+  }
+
+  const btnClearKey = $("btnCvClearApiKey");
+  if (btnClearKey) {
+    btnClearKey.addEventListener("click", function () {
+      if (busy) return;
+      saveAiSettings({ clearApiKey: true });
+      const apiInput = $("cvApiKey");
+      if (apiInput) apiInput.value = "";
+      apiKeyRevealed = false;
+      renderAiSettings({ reveal: false });
+      updateActionButtons(cv);
     });
   }
 
@@ -1008,8 +1055,13 @@ export function initCvManager(appState) {
   bindUi(cv);
   renderAll(cv);
 
-  // Locale: health check una volta. GitHub Pages / statico: nessun fetch a /api/*.
-  if (isStaticHostWithoutBackend()) {
+  // Locale con backend: health una volta. Pages / statico: nessuno fetch a /api/*
+  // (in Browser mode la readiness dipende dalla API key, non dal health).
+  const settingsInit = loadAiSettings();
+  if (settingsInit.connectionMode === AI_MODE_LOCAL && isBrowserAiAllowed()) {
+    renderAiSettings({ reveal: false });
+    updateActionButtons(cv);
+  } else if (isStaticHostWithoutBackend()) {
     applyStaticHostBackendState();
     renderAiSettings({ reveal: false });
     updateActionButtons(cv);

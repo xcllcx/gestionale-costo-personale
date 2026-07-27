@@ -922,31 +922,31 @@
           <div class="ui-macro-title" id="cv-macro-ai">Configurazione AI</div>
 
           <section class="card card-collapse" aria-labelledby="cv-macro-ai">
-            <p class="card-subtitle">OpenAI — modalità sicura predefinita; chiave mai in AppState né nel codice.</p>
-            <p class="cv-hint cv-health" id="cvBackendHealth" role="status">Stato backend in attesa di verifica.</p>
+            <p class="card-subtitle">OpenAI — su GitHub Pages usare Browser con API key personale; in locale è disponibile anche la modalità Sicura.</p>
+            <p class="cv-hint cv-health" id="cvBackendHealth" role="status">Stato connessione AI in attesa.</p>
             <div class="actions cv-card-actions">
               <button type="button" class="btn btn-secondary" id="btnCvVerificaBackend">
                 Verifica backend
               </button>
             </div>
 
-            <details class="ui-collapse">
+            <details class="ui-collapse" open>
               <summary class="ui-collapse-summary">Mostra impostazioni</summary>
               <div class="ui-collapse-body">
                 <fieldset class="field-group">
                   <legend>Modalità connessione</legend>
                   <div class="radio-grid radio-grid-2" role="radiogroup" aria-label="Modalità connessione AI">
                     <label class="radio-chip">
-                      <input type="radio" name="cvConnectionMode" id="cvModeSecure" value="secure" checked />
+                      <input type="radio" name="cvConnectionMode" id="cvModeSecure" value="secure" />
                       <span>Sicura (backend)</span>
                     </label>
                     <label class="radio-chip">
-                      <input type="radio" name="cvConnectionMode" id="cvModeLocal" value="localDev" />
-                      <span>Locale temporanea (solo sviluppo)</span>
+                      <input type="radio" name="cvConnectionMode" id="cvModeLocal" value="localDev" checked />
+                      <span>Browser — API key personale</span>
                     </label>
                   </div>
                   <p class="cv-hint" id="cvLocalDevWarning">
-                    La modalità locale è disponibile solo su localhost / file locale e deve restare disabilitata in pubblicazione.
+                    La API key viene utilizzata direttamente dal browser e resta sul dispositivo corrente. Utilizzare preferibilmente una chiave personale o dedicata all’applicazione.
                   </p>
                 </fieldset>
 
@@ -956,17 +956,24 @@
                   <p class="cv-hint">Usato in modalità sicura. La API key resta solo sul backend.</p>
                 </div>
 
-                <div id="cvLocalDevBlock" hidden>
-                  <p class="cv-local-banner" role="status">Solo sviluppo locale — non usare in produzione</p>
+                <div id="cvLocalDevBlock">
+                  <p class="cv-local-banner" role="status">Chiamata diretta a OpenAI dal browser</p>
                   <div class="field">
-                    <label for="cvApiKey">API Key (locale)</label>
+                    <label for="cvApiKey">API Key</label>
                     <div class="cv-api-row">
                       <input type="password" id="cvApiKey" name="cvApiKey" autocomplete="off" placeholder="sk-…" />
                       <button type="button" class="btn btn-secondary" id="btnCvToggleApiKey" aria-pressed="false">
                         Mostra
                       </button>
+                      <button type="button" class="btn btn-secondary" id="btnCvClearApiKey">
+                        Rimuovi
+                      </button>
                     </div>
-                    <p class="cv-hint" id="cvApiKeyHint">Nessuna API Key salvata in locale.</p>
+                    <label class="cv-check">
+                      <input type="checkbox" id="cvDontPersistApiKey" name="cvDontPersistApiKey" />
+                      <span>Non salvare la chiave su questo dispositivo</span>
+                    </label>
+                    <p class="cv-hint" id="cvApiKeyHint">Nessuna API Key presente.</p>
                   </div>
                 </div>
 

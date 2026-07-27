@@ -3,11 +3,9 @@
 **Versione:** REV03_SHARED
 
 **Profilo:**
-- **Stabile su GitHub Pages** per i moduli statici (Costo, Overtime, Draft Tecnico)
-- **Stabile in locale** per l’applicazione completa incluso CV Manager AI
-- **CV Manager AI** disponibile solo con staging locale (`npm run staging`) — non eseguito da GitHub Pages
-
-Non è una release “production backend ready”.
+- **Stabile su GitHub Pages** per Costo, Overtime, Draft Tecnico e **CV Manager in modalità Browser** (API key personale dell’utente)
+- **Stabile in locale** con modalità Sicura (backend Express) e/o Browser
+- Nessuna API key nel repository o nel bundle pubblicato
 
 ## Funzionalità
 
@@ -16,14 +14,15 @@ Non è una release “production backend ready”.
 | Calcolo Costi | Sì | Sì |
 | Overtime | Sì | Sì |
 | Draft Tecnico | Sì | Sì |
-| CV Manager UI | Sì (AI disabilitata) | Sì |
-| Analisi AI CV | No | Sì (`/api/analyze-cv`) |
+| CV Manager UI | Sì | Sì |
+| Analisi AI CV (Browser) | Sì (API key utente) | Sì |
+| Analisi AI CV (Secure) | No (nessun backend) | Sì (`npm run staging`) |
 
 ## Link pubblico
 
 https://xcllcx.github.io/gestionale-costo-personale/
 
-## Avvio locale completo (CV Manager AI)
+## Avvio locale completo (Secure + Browser)
 
 ```bash
 cp .env.example .env
@@ -33,8 +32,3 @@ npm run staging
 ```
 
 Aprire: `http://127.0.0.1:8767/`
-
-## Note
-
-- Backup locale: `BACKUP_BEFORE_REV03_RC/` (escluso da Git)
-- Tag: valutare `v3.0.0` solo se allineato alla strategia di release condivisa

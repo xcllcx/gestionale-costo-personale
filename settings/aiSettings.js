@@ -1,6 +1,6 @@
 /**
- * Impostazioni AI (REV03 RC)
- * Gestione modello, modalità connessione, chiave locale e health backend.
+ * Impostazioni AI (REV03_SHARED + Browser su GitHub Pages)
+ * Gestione modello, modalità connessione, chiave browser e health backend.
  * La API key NON va mai in AppState, log, Git o messaggi UI in chiaro di default.
  */
 
@@ -8,22 +8,31 @@ const STORAGE_KEY_API = "gestionale.cvManager.apiKey";
 const STORAGE_KEY_MODEL = "gestionale.cvManager.model";
 const STORAGE_KEY_MODE = "gestionale.cvManager.connectionMode";
 const STORAGE_KEY_ENDPOINT = "gestionale.cvManager.secureEndpoint";
+const STORAGE_KEY_PERSIST_KEY = "gestionale.cvManager.persistApiKey";
 
 export const AI_DEFAULT_MODEL = "gpt-5.5";
 export const AI_DEFAULT_SECURE_ENDPOINT = "/api/analyze-cv";
 export const AI_DEFAULT_HEALTH_ENDPOINT = "/api/health";
 
-/** Modalità: secure (default) | localDev */
+/** Modalità: secure | localDev (valore storage; UI = "Browser") */
 export const AI_MODE_SECURE = "secure";
 export const AI_MODE_LOCAL = "localDev";
+/** Alias semantico della modalità Browser (stesso valore di AI_MODE_LOCAL). */
+export const AI_MODE_BROWSER = AI_MODE_LOCAL;
 
 /**
  * @typedef {"unknown"|"checking"|"ready"|"not_configured"|"unreachable"|"incomplete"|"static_host"} BackendHealthStatus
  */
 
-/** Messaggio UI su GitHub Pages / host statico senza backend AI. */
+/** Messaggio quando Secure non è disponibile su host statico (Pages). */
 export const STATIC_HOST_AI_MESSAGE =
-  "La funzione AI del CV Manager è disponibile esclusivamente nella versione locale.";
+  "La modalità Sicura non è disponibile su questo host. Selezionare Browser e inserire una API key personale.";
+
+export const BROWSER_AI_SECURITY_HINT =
+  "La API key viene utilizzata direttamente dal browser e resta sul dispositivo corrente. Utilizzare preferibilmente una chiave personale o dedicata all’applicazione.";
+
+/** Chiave solo in memoria di sessione (non persistita). Non loggare. */
+let memoryApiKey = "";
 
 /** @type {{ status: BackendHealthStatus, checkedAt: number, message: string, openaiConfigured: boolean|null }} */
 let backendHealth = {
@@ -34,7 +43,7 @@ let backendHealth = {
 };
 
 /**
- * Host di sviluppo locale (file:// o localhost).
+ * Host di sviluppo locale (file:// o localhost / 127.0.0.1).
  * @returns {boolean}
  */
 export function isLocalDevHost() {
@@ -50,7 +59,7 @@ export function isLocalDevHost() {
 }
 
 /**
- * Hosting GitHub Pages (statico, senza Node backend).
+ * Hosting GitHub Pages.
  * @returns {boolean}
  */
 export function isGitHubPages() {
@@ -62,7 +71,16 @@ export function isGitHubPages() {
 }
 
 /**
- * Build pubblica: la modalità locale deve essere inutilizzabile.
+ * Unica fonte di verità: dove è consentita la modalità Browser (API key utente).
+ * Consentita su file://, localhost, 127.0.0.1 e *.github.io.
+ * @returns {boolean}
+ */
+export function isBrowserAiAllowed() {
+  return isLocalDevHost() || isGitHubPages();
+}
+
+/**
+ * Deploy non-locale (Pages o altro host pubblico).
  * @returns {boolean}
  */
 export function isPublicDeploy() {
@@ -70,16 +88,16 @@ export function isPublicDeploy() {
 }
 
 /**
- * Host statico senza backend AI (Pages o altro deploy pubblico non-localhost).
- * Su questi host non si effettuano health check di rete verso /api/*.
+ * Host senza backend Express raggiungibile (es. GitHub Pages).
+ * Non implica che la modalità Browser sia vietata.
  * @returns {boolean}
  */
 export function isStaticHostWithoutBackend() {
-  return isGitHubPages() || isPublicDeploy();
+  return isGitHubPages() || (isPublicDeploy() && !isLocalDevHost());
 }
 
 /**
- * Imposta lo stato backend senza chiamate di rete (GitHub Pages / statico).
+ * Imposta lo stato backend senza chiamate di rete (host statico).
  * @returns {{ status: BackendHealthStatus, checkedAt: number, message: string, openaiConfigured: boolean|null }}
  */
 export function applyStaticHostBackendState() {
@@ -93,23 +111,44 @@ export function applyStaticHostBackendState() {
 }
 
 /**
- * @returns {{ model: string, connectionMode: string, secureEndpoint: string, hasApiKey: boolean }}
+ * Preferenza persistenza chiave (default: salva sul dispositivo).
+ * @returns {boolean}
+ */
+export function getPersistApiKeyPreference() {
+  try {
+    const v = localStorage.getItem(STORAGE_KEY_PERSIST_KEY);
+    if (v === "0") return false;
+    return true;
+  } catch (err) {
+    return true;
+  }
+}
+
+/**
+ * @returns {{ model: string, connectionMode: string, secureEndpoint: string, hasApiKey: boolean, persistApiKey: boolean }}
  */
 export function loadAiSettings() {
   let model = AI_DEFAULT_MODEL;
   let connectionMode = AI_MODE_SECURE;
   let secureEndpoint = AI_DEFAULT_SECURE_ENDPOINT;
   let hasApiKey = false;
+  let persistApiKey = true;
 
   try {
     model = localStorage.getItem(STORAGE_KEY_MODEL) || AI_DEFAULT_MODEL;
     const storedMode = localStorage.getItem(STORAGE_KEY_MODE);
     secureEndpoint =
       localStorage.getItem(STORAGE_KEY_ENDPOINT) || AI_DEFAULT_SECURE_ENDPOINT;
-    const key = localStorage.getItem(STORAGE_KEY_API) || "";
-    hasApiKey = !!key;
+    persistApiKey = getPersistApiKeyPreference();
+    const storedKey = localStorage.getItem(STORAGE_KEY_API) || "";
+    hasApiKey = !!(memoryApiKey || storedKey);
 
-    if (storedMode === AI_MODE_LOCAL && isLocalDevHost()) {
+    if (storedMode === AI_MODE_LOCAL && isBrowserAiAllowed()) {
+      connectionMode = AI_MODE_LOCAL;
+    } else if (storedMode === AI_MODE_SECURE) {
+      connectionMode = AI_MODE_SECURE;
+    } else if (isGitHubPages() && isBrowserAiAllowed()) {
+      // Prima visita / senza preferenza: su Pages la modalità utile è Browser
       connectionMode = AI_MODE_LOCAL;
     } else {
       connectionMode = AI_MODE_SECURE;
@@ -118,7 +157,7 @@ export function loadAiSettings() {
     console.warn("[aiSettings] Impossibile leggere localStorage.");
   }
 
-  if (isPublicDeploy()) {
+  if (connectionMode === AI_MODE_LOCAL && !isBrowserAiAllowed()) {
     connectionMode = AI_MODE_SECURE;
   }
 
@@ -126,18 +165,22 @@ export function loadAiSettings() {
     model: model,
     connectionMode: connectionMode,
     secureEndpoint: secureEndpoint,
-    hasApiKey: hasApiKey
+    hasApiKey: hasApiKey,
+    persistApiKey: persistApiKey
   };
 }
 
 /**
- * Restituisce la chiave solo in memoria per la chiamata locale.
+ * Restituisce la chiave solo per la chiamata Browser.
  * NON loggare il valore restituito.
  * @returns {string}
  */
 export function getLocalApiKey() {
-  if (isPublicDeploy()) {
+  if (!isBrowserAiAllowed()) {
     return "";
+  }
+  if (memoryApiKey) {
+    return memoryApiKey;
   }
   try {
     return localStorage.getItem(STORAGE_KEY_API) || "";
@@ -152,9 +195,10 @@ export function getLocalApiKey() {
  *   connectionMode?: string,
  *   secureEndpoint?: string,
  *   apiKey?: string,
- *   clearApiKey?: boolean
+ *   clearApiKey?: boolean,
+ *   persistApiKey?: boolean
  * }} settings
- * @returns {{ model: string, connectionMode: string, secureEndpoint: string, hasApiKey: boolean }}
+ * @returns {{ model: string, connectionMode: string, secureEndpoint: string, hasApiKey: boolean, persistApiKey: boolean }}
  */
 export function saveAiSettings(settings) {
   const input = settings || {};
@@ -164,7 +208,7 @@ export function saveAiSettings(settings) {
       : AI_DEFAULT_MODEL;
 
   let connectionMode = AI_MODE_SECURE;
-  if (input.connectionMode === AI_MODE_LOCAL && isLocalDevHost()) {
+  if (input.connectionMode === AI_MODE_LOCAL && isBrowserAiAllowed()) {
     connectionMode = AI_MODE_LOCAL;
   }
 
@@ -173,20 +217,35 @@ export function saveAiSettings(settings) {
       ? input.secureEndpoint.trim()
       : AI_DEFAULT_SECURE_ENDPOINT;
 
+  const persistApiKey =
+    typeof input.persistApiKey === "boolean"
+      ? input.persistApiKey
+      : getPersistApiKeyPreference();
+
   try {
     localStorage.setItem(STORAGE_KEY_MODEL, model);
     localStorage.setItem(STORAGE_KEY_MODE, connectionMode);
     localStorage.setItem(STORAGE_KEY_ENDPOINT, secureEndpoint);
+    localStorage.setItem(STORAGE_KEY_PERSIST_KEY, persistApiKey ? "1" : "0");
 
     if (input.clearApiKey) {
+      memoryApiKey = "";
       localStorage.removeItem(STORAGE_KEY_API);
     } else if (typeof input.apiKey === "string") {
       const key = input.apiKey.trim();
-      if (key) {
+      if (!key) {
+        memoryApiKey = "";
+        localStorage.removeItem(STORAGE_KEY_API);
+      } else if (persistApiKey) {
+        memoryApiKey = "";
         localStorage.setItem(STORAGE_KEY_API, key);
       } else {
+        memoryApiKey = key;
         localStorage.removeItem(STORAGE_KEY_API);
       }
+    } else if (!persistApiKey) {
+      // Preferenza "non salvare": rimuove eventuale copia persistita
+      localStorage.removeItem(STORAGE_KEY_API);
     }
   } catch (err) {
     console.warn("[aiSettings] Impossibile scrivere localStorage.");
@@ -224,13 +283,13 @@ export function getBackendHealth() {
 
 /**
  * Health check una tantum / manuale (non polling aggressivo).
- * @param {{ endpoint?: string, timeoutMs?: number }} [options]
+ * Su host statico senza backend: nessun fetch automatico.
+ * @param {{ endpoint?: string, timeoutMs?: number, forceNetwork?: boolean }} [options]
  * @returns {Promise<{ status: BackendHealthStatus, checkedAt: number, message: string, openaiConfigured: boolean|null }>}
  */
 export async function checkBackendHealth(options) {
   const opts = options || {};
 
-  // GitHub Pages / deploy statico: nessun fetch a /api/health (evita errori di rete in console).
   if (isStaticHostWithoutBackend() && opts.forceNetwork !== true) {
     return applyStaticHostBackendState();
   }
@@ -321,6 +380,7 @@ export async function checkBackendHealth(options) {
 
 /**
  * Configurazione AI valida per avviare l'analisi (readiness onesta).
+ * In modalità Browser non richiede health backend.
  * @returns {{ ok: boolean, reason: string, message: string }}
  */
 export function getAiConfigReadiness() {
@@ -333,32 +393,25 @@ export function getAiConfigReadiness() {
     };
   }
 
-  if (isStaticHostWithoutBackend()) {
-    return {
-      ok: false,
-      reason: "static_host",
-      message: STATIC_HOST_AI_MESSAGE
-    };
-  }
-
   if (settings.connectionMode === AI_MODE_LOCAL) {
-    if (isPublicDeploy()) {
+    if (!isBrowserAiAllowed()) {
       return {
         ok: false,
-        reason: "local_forbidden",
-        message: "La modalità locale non è disponibile in pubblicazione."
+        reason: "browser_forbidden",
+        message: "La modalità Browser non è disponibile su questo host."
       };
     }
     if (!getLocalApiKey()) {
       return {
         ok: false,
         reason: "missing_key",
-        message: "Inserire la API Key locale (solo sviluppo)."
+        message: "Inserire una API key per utilizzare il CV Manager."
       };
     }
     return { ok: true, reason: "", message: "" };
   }
 
+  // Modalità Secure
   if (!settings.secureEndpoint) {
     return {
       ok: false,
