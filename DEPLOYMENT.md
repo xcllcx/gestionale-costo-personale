@@ -13,8 +13,9 @@ URL: https://xcllcx.github.io/gestionale-costo-personale/
 
 - Branch: `main`, cartella `/`
 - Nessun backend Node su Pages
-- Nessuna chiamata automatica a `/api/health` dal client
-- Messaggio UI: funzione AI solo in versione locale
+- **CV Manager:** modalità **Browser — API key personale** (chiave inserita dall’utente; mai nel repo)
+- Modalità Sicura non pronta su Pages (nessun `/api/health`)
+- Nessuna chiamata automatica a `/api/*` in modalità Browser
 
 ## Staging locale (CV Manager completo)
 
