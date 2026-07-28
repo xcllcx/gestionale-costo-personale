@@ -436,7 +436,7 @@
                     <input type="number" id="otGiorniCalendarCliente" name="otGiorniCalendarCliente" min="1" step="1" value="30" />
                     <span class="suffix">gg</span>
                   </div>
-                  <p class="field-hint">Default 30. Conversione: getEquivalent26Rate(Rate30, giorni) ÷ ore.</p>
+                  <p class="field-hint">Default 30. Formula: (Rate selezionato − pocket mensile ÷ 30) ÷ ore lavorative.</p>
                 </div>
               </fieldset>
 
@@ -1044,6 +1044,6 @@
   <!-- Libreria docx (browser, senza Node.js) per export .docx -->
   <script src="lib/docx.min.js"></script>
   <!-- Logica applicativa legacy (REV02_STABLE) + registrazione moduli REV03 -->
-  <script src="script.js?v=ot-hotfix-20260728"></script>
+  <script src="script.js?v=ot-client-pocket-20260728"></script>
 </body>
 </html>

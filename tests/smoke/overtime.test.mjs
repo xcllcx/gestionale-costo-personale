@@ -99,7 +99,7 @@ test("hotfix: allowance/rimborsi non influenzano base tecnico", function () {
   assert.ok(Math.abs(r.costoOrario - 24.03846153846154) < 1e-6);
 });
 
-test("hotfix: solo pocket cambia → OT tecnico invariato; cliente invariato", function () {
+test("hotfix: solo pocket cambia → OT tecnico invariato; cliente cambia", function () {
   const base = {
     nettoMensile: 5000,
     rate26: 300,
@@ -136,7 +136,10 @@ test("hotfix: solo pocket cambia → OT tecnico invariato; cliente invariato", f
     10,
     1.15
   );
-  assert.equal(ca.prezzoOrario, cb.prezzoOrario);
+  // Pocket escluso dalla base cliente → OT cliente deve cambiare
+  assert.ok(cb.prezzoOrario < ca.prezzoOrario);
+  assert.equal(cb.dailyPocketMoney, 1000 / 30);
+  assert.equal(ca.dailyPocketMoney, 0);
 });
 
 test("hotfix: legacy senza nettoMensile recupera netto−pocket", function () {
@@ -148,4 +151,114 @@ test("hotfix: legacy senza nettoMensile recupera netto−pocket", function () {
     prezzoFinale: 7800
   };
   assert.equal(formulas.getTechnicianMonthlyNet(c), 5000);
+});
+
+test("hotfix cliente: Calendar 550 pocket 1500 → base 500, OT 62.50", function () {
+  const c = {
+    rate26: 600,
+    rate30: 550,
+    pocketMoney: 1500,
+    nettoMensile: 5000,
+    netto: 6500
+  };
+  assert.equal(formulas.getClientDailyPocketMoney(c), 50);
+  const r = formulas.calcolaOvertimeCliente(c, "calendar", 30, 10, 1.25);
+  assert.equal(r.dailyPocketMoney, 50);
+  assert.equal(r.clientOvertimeBaseDaily, 500);
+  assert.equal(r.prezzoOrarioBase, 50);
+  assert.equal(r.prezzoOrario, 62.5);
+});
+
+test("hotfix cliente: Working 600 pocket 1500 → base 550, OT 68.75", function () {
+  const c = {
+    rate26: 600,
+    rate30: 550,
+    pocketMoney: 1500,
+    nettoMensile: 5000,
+    netto: 6500
+  };
+  const r = formulas.calcolaOvertimeCliente(c, "working", 30, 10, 1.25);
+  assert.equal(r.dailyPocketMoney, 50);
+  assert.equal(r.clientOvertimeBaseDaily, 550);
+  assert.equal(r.prezzoOrarioBase, 55);
+  assert.equal(r.prezzoOrario, 68.75);
+});
+
+test("hotfix cliente: pocket 0 → rate invariato", function () {
+  const c = {
+    rate26: 600,
+    rate30: 550,
+    pocketMoney: 0,
+    nettoMensile: 5000,
+    netto: 5000
+  };
+  const w = formulas.calcolaOvertimeCliente(c, "working", 30, 10, 1.25);
+  const cal = formulas.calcolaOvertimeCliente(c, "calendar", 30, 10, 1.25);
+  assert.equal(w.dailyPocketMoney, 0);
+  assert.equal(w.clientOvertimeBaseDaily, 600);
+  assert.equal(w.prezzoOrario, 75);
+  assert.equal(cal.clientOvertimeBaseDaily, 550);
+  assert.equal(cal.prezzoOrario, 68.75);
+});
+
+test("hotfix cliente: pocket 3000 → daily 100", function () {
+  const c = { rate26: 600, rate30: 550, pocketMoney: 3000 };
+  assert.equal(formulas.getClientDailyPocketMoney(c), 100);
+  const r = formulas.calcolaOvertimeCliente(c, "calendar", 30, 10, 1);
+  assert.equal(r.clientOvertimeBaseDaily, 450);
+});
+
+test("hotfix cliente: pocket > rate → errore, nessun negativo", function () {
+  const c = { rate26: 40, rate30: 40, pocketMoney: 1500 };
+  assert.equal(formulas.getClientDailyPocketMoney(c), 50);
+  assert.throws(function () {
+    formulas.calcolaOvertimeCliente(c, "working", 30, 10, 1.25);
+  }, /pocket money giornaliero è superiore/i);
+});
+
+test("hotfix cliente: pocket cambia OT cliente, non OT tecnico", function () {
+  const t0 = formulas.calcolaOvertimeTecnico(
+    {
+      netto: 5000,
+      nettoMensile: 5000,
+      pocketMoney: 0,
+      rate26: 600,
+      rate30: 550
+    },
+    "working",
+    30,
+    10,
+    1.25
+  );
+  const t1 = formulas.calcolaOvertimeTecnico(
+    {
+      netto: 6500,
+      nettoMensile: 5000,
+      pocketMoney: 1500,
+      rate26: 600,
+      rate30: 550
+    },
+    "working",
+    30,
+    10,
+    1.25
+  );
+  assert.equal(t0.costoOrario, t1.costoOrario);
+
+  const c0 = formulas.calcolaOvertimeCliente(
+    { rate26: 600, rate30: 550, pocketMoney: 0 },
+    "calendar",
+    30,
+    10,
+    1.25
+  );
+  const c1 = formulas.calcolaOvertimeCliente(
+    { rate26: 600, rate30: 550, pocketMoney: 1500 },
+    "calendar",
+    30,
+    10,
+    1.25
+  );
+  assert.equal(c0.prezzoOrario, 68.75);
+  assert.equal(c1.prezzoOrario, 62.5);
 });

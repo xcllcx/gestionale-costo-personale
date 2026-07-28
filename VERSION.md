@@ -7,6 +7,7 @@
 - **Stabile in locale** con modalità Sicura (backend Express) e/o Browser
 - Nessuna API key nel repository o nel bundle pubblicato
 - **Hotfix:** overtime tecnico basato solo sul netto mensile (pocket escluso)
+- **Hotfix:** overtime cliente scorpora pocket giornaliero (mensile ÷ 30) dal rate selezionato
 
 ## Funzionalità
 

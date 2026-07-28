@@ -1,5 +1,12 @@
 # CHANGELOG
 
+## HOTFIX Overtime cliente — scorporo pocket (2026-07-28)
+
+### Fixed
+- Base overtime cliente = rate selezionato (Working 26 o Calendar 30) − pocket mensile ÷ 30
+- Pocket money sempre diviso per 30 (voce calendar)
+- Blocco se pocket giornaliero > rate selezionato
+
 ## HOTFIX Overtime tecnico (2026-07-28)
 
 ### Fixed
