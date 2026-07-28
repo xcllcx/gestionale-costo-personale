@@ -1,11 +1,12 @@
 # Versione
 
-**Versione:** REV03_SHARED
+**Versione:** REV03_SHARED (+ hotfix overtime tecnico 2026-07-28)
 
 **Profilo:**
 - **Stabile su GitHub Pages** per Costo, Overtime, Draft Tecnico e **CV Manager in modalità Browser** (API key personale dell’utente)
 - **Stabile in locale** con modalità Sicura (backend Express) e/o Browser
 - Nessuna API key nel repository o nel bundle pubblicato
+- **Hotfix:** overtime tecnico basato solo sul netto mensile (pocket escluso)
 
 ## Funzionalità
 

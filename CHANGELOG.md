@@ -1,5 +1,12 @@
 # CHANGELOG
 
+## HOTFIX Overtime tecnico (2026-07-28)
+
+### Fixed
+- La base overtime lato tecnico usa esclusivamente il **netto mensile** (`nettoMensile`)
+- Pocket money e voci accessorie non influenzano più rate/giorno, rate/ora e OT tecnico
+- Pannello importato OT mostra il netto mensile corretto
+
 ## REV03_SHARED — Browser AI su GitHub Pages (2026-07-27)
 
 ### Changed

@@ -82,6 +82,7 @@ export function loadLegacyFormulas() {
     calcolaOvertimeTecnico: sandbox.calcolaOvertimeTecnico,
     calcolaOvertimeCliente: sandbox.calcolaOvertimeCliente,
     getEquivalent26Rate: sandbox.getEquivalent26Rate,
+    getTechnicianMonthlyNet: sandbox.getTechnicianMonthlyNet,
     validateInput: sandbox.validateInput
   };
 }

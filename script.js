@@ -1097,10 +1097,45 @@ function labelMaggiorazione(fattore) {
 }
 
 /**
+ * Base economica OVERTIME TECNICO: esclusivamente il netto mensile inserito.
+ * Non include pocket money né altre voci accessorie.
+ * (calc.netto dopo il calcolo costo può essere netto+pocket per le formule costo.)
+ *
+ * @param {object} calc
+ * @returns {number}
+ */
+function getTechnicianMonthlyNet(calc) {
+  if (!calc || typeof calc !== "object") {
+    return 0;
+  }
+  const fromMensile = Number(calc.nettoMensile);
+  if (Number.isFinite(fromMensile) && fromMensile > 0) {
+    return fromMensile;
+  }
+  const netto = Number(calc.netto);
+  if (!Number.isFinite(netto)) {
+    return 0;
+  }
+  // Legacy: senza nettoMensile, calc.netto poteva già includere il pocket imponibile
+  if (!calc.standalone) {
+    const pocket = Number(calc.pocketMoney);
+    if (Number.isFinite(pocket) && pocket > 0) {
+      const recovered = netto - pocket;
+      if (recovered > 0) {
+        return recovered;
+      }
+    }
+  }
+  return netto;
+}
+
+/**
  * OVERTIME TECNICO — costo orario (€/ora)
  *
- * Working:  (Netto / 26) / oreLavorative × maggiorazione
- * Calendar: (Netto / giorniCalendar) / oreLavorative × maggiorazione
+ * Working:  (Netto mensile / 26) / oreLavorative × maggiorazione
+ * Calendar: (Netto mensile / giorniCalendar) / oreLavorative × maggiorazione
+ *
+ * La base è solo il netto mensile (technicianMonthlyNet), mai netto+pocket.
  *
  * @param {object} calc - currentCalculation
  * @param {"working"|"calendar"} metodo
@@ -1112,26 +1147,27 @@ function labelMaggiorazione(fattore) {
 function calcolaOvertimeTecnico(calc, metodo, giorniCalendar, oreLavorative, fattoreMagg) {
   const steps = [];
   let quotaGiornaliera = 0;
+  const technicianMonthlyNet = getTechnicianMonthlyNet(calc);
 
   if (metodo === "working") {
-    quotaGiornaliera = calc.netto / 26;
+    quotaGiornaliera = technicianMonthlyNet / 26;
     steps.push(
       "Metodo tecnico: Working days"
     );
     steps.push(
-      "Quota giornaliera = Netto ÷ 26 = " +
-        formatCurrency(calc.netto) +
+      "Quota giornaliera = Netto mensile ÷ 26 = " +
+        formatCurrency(technicianMonthlyNet) +
         " ÷ 26 = " +
         formatCurrency(quotaGiornaliera)
     );
   } else {
-    quotaGiornaliera = calc.netto / giorniCalendar;
+    quotaGiornaliera = technicianMonthlyNet / giorniCalendar;
     steps.push(
       "Metodo tecnico: Calendar days (" + giorniCalendar + " gg)"
     );
     steps.push(
-      "Quota giornaliera = Netto ÷ Giorni calendar = " +
-        formatCurrency(calc.netto) +
+      "Quota giornaliera = Netto mensile ÷ Giorni calendar = " +
+        formatCurrency(technicianMonthlyNet) +
         " ÷ " +
         giorniCalendar +
         " = " +
@@ -1167,6 +1203,7 @@ function calcolaOvertimeTecnico(calc, metodo, giorniCalendar, oreLavorative, fat
     giorniCalendar: metodo === "calendar" ? giorniCalendar : null,
     fattoreMagg,
     maggLabel: labelMaggiorazione(fattoreMagg),
+    technicianMonthlyNet,
     quotaGiornaliera,
     costoOrarioBase,
     costoOrario,
@@ -1370,7 +1407,7 @@ function calcolaOvertimeCompleto() {
     standalone: !!calc.standalone,
     imported: {
       tipoContratto: calc.tipoContratto,
-      netto: calc.netto,
+      netto: getTechnicianMonthlyNet(calc),
       prezzoFinale: calc.prezzoFinale,
       rate26: calc.rate26,
       rate30: calc.rate30,
@@ -1408,7 +1445,9 @@ function refreshOvertimeImportedPanel() {
 
   document.getElementById("otImpTipo").textContent =
     MODE_LABELS[calc.mode] || calc.tipoContratto || "—";
-  document.getElementById("otImpNetto").textContent = formatCurrency(calc.netto);
+  document.getElementById("otImpNetto").textContent = formatCurrency(
+    getTechnicianMonthlyNet(calc)
+  );
   document.getElementById("otImpPrezzoFinale").textContent = formatCurrency(
     calc.prezzoFinale
   );
