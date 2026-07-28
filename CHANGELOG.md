@@ -1,5 +1,12 @@
 # CHANGELOG
 
+## HOTFIX Overtime cliente — Calendar→Working + pocket /30 (2026-07-28)
+
+### Fixed
+- Calendar rate convertito in Working (`rate × calendarDays / 26`) prima dello scorporo
+- Pocket money sempre `mensile / 30` (mai /26 né /workingDays), anche dopo la conversione
+- Working rate: scorporo diretto pocket/30 senza conversione
+
 ## HOTFIX Overtime cliente — scorporo pocket (2026-07-28)
 
 ### Fixed

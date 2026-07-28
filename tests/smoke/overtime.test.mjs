@@ -153,7 +153,7 @@ test("hotfix: legacy senza nettoMensile recupera netto−pocket", function () {
   assert.equal(formulas.getTechnicianMonthlyNet(c), 5000);
 });
 
-test("hotfix cliente: Calendar 550 pocket 1500 → base 500, OT 62.50", function () {
+test("hotfix cliente: Calendar 550 pocket 1500 → eq 634.62, base 584.62, OT 73.08", function () {
   const c = {
     rate26: 600,
     rate30: 550,
@@ -162,11 +162,14 @@ test("hotfix cliente: Calendar 550 pocket 1500 → base 500, OT 62.50", function
     netto: 6500
   };
   assert.equal(formulas.getClientDailyPocketMoney(c), 50);
+  assert.equal(formulas.POCKET_MONEY_CALENDAR_DAYS, 30);
   const r = formulas.calcolaOvertimeCliente(c, "calendar", 30, 10, 1.25);
   assert.equal(r.dailyPocketMoney, 50);
-  assert.equal(r.clientOvertimeBaseDaily, 500);
-  assert.equal(r.prezzoOrarioBase, 50);
-  assert.equal(r.prezzoOrario, 62.5);
+  assert.ok(Math.abs(r.clientEquivalentWorkingRate - (550 * 30) / 26) < 1e-9);
+  assert.ok(Math.abs(r.clientWorkingOvertimeBase - ((550 * 30) / 26 - 50)) < 1e-9);
+  // 584.6153846...
+  assert.ok(Math.abs(r.clientWorkingOvertimeBase - 584.6153846153846) < 1e-9);
+  assert.equal(Number(r.prezzoOrario.toFixed(2)), 73.08);
 });
 
 test("hotfix cliente: Working 600 pocket 1500 → base 550, OT 68.75", function () {
@@ -179,12 +182,12 @@ test("hotfix cliente: Working 600 pocket 1500 → base 550, OT 68.75", function 
   };
   const r = formulas.calcolaOvertimeCliente(c, "working", 30, 10, 1.25);
   assert.equal(r.dailyPocketMoney, 50);
-  assert.equal(r.clientOvertimeBaseDaily, 550);
+  assert.equal(r.clientWorkingOvertimeBase, 550);
   assert.equal(r.prezzoOrarioBase, 55);
   assert.equal(r.prezzoOrario, 68.75);
 });
 
-test("hotfix cliente: pocket 0 → rate invariato", function () {
+test("hotfix cliente: pocket 0 → rate invariato (calendar convertito, working grezzo)", function () {
   const c = {
     rate26: 600,
     rate30: 550,
@@ -195,25 +198,50 @@ test("hotfix cliente: pocket 0 → rate invariato", function () {
   const w = formulas.calcolaOvertimeCliente(c, "working", 30, 10, 1.25);
   const cal = formulas.calcolaOvertimeCliente(c, "calendar", 30, 10, 1.25);
   assert.equal(w.dailyPocketMoney, 0);
-  assert.equal(w.clientOvertimeBaseDaily, 600);
+  assert.equal(w.clientWorkingOvertimeBase, 600);
   assert.equal(w.prezzoOrario, 75);
-  assert.equal(cal.clientOvertimeBaseDaily, 550);
-  assert.equal(cal.prezzoOrario, 68.75);
+  assert.ok(Math.abs(cal.clientWorkingOvertimeBase - (550 * 30) / 26) < 1e-9);
+  assert.equal(Number(cal.prezzoOrario.toFixed(2)), 79.33);
 });
 
-test("hotfix cliente: pocket 3000 → daily 100", function () {
+test("hotfix cliente: pocket sempre ÷30, mai ÷workingDays", function () {
+  assert.equal(formulas.getClientDailyPocketMoney({ pocketMoney: 1500 }), 50);
+  assert.equal(formulas.getClientDailyPocketMoney({ pocketMoney: 3000 }), 100);
+  assert.notEqual(formulas.getClientDailyPocketMoney({ pocketMoney: 1500 }), 1500 / 26);
+  const r26 = formulas.calcolaOvertimeCliente(
+    { rate26: 600, rate30: 550, pocketMoney: 1500, workingDays: 26 },
+    "calendar",
+    30,
+    10,
+    1
+  );
+  const r20 = formulas.calcolaOvertimeCliente(
+    { rate26: 600, rate30: 550, pocketMoney: 1500, workingDays: 20 },
+    "calendar",
+    30,
+    10,
+    1
+  );
+  // Cambiano i working days → cambia il rate convertito
+  assert.ok(r20.clientEquivalentWorkingRate > r26.clientEquivalentWorkingRate);
+  // Pocket giornaliero invariato
+  assert.equal(r26.dailyPocketMoney, 50);
+  assert.equal(r20.dailyPocketMoney, 50);
+});
+
+test("hotfix cliente: pocket 3000 calendar → daily 100, base eq−100", function () {
   const c = { rate26: 600, rate30: 550, pocketMoney: 3000 };
   assert.equal(formulas.getClientDailyPocketMoney(c), 100);
   const r = formulas.calcolaOvertimeCliente(c, "calendar", 30, 10, 1);
-  assert.equal(r.clientOvertimeBaseDaily, 450);
+  assert.ok(Math.abs(r.clientWorkingOvertimeBase - ((550 * 30) / 26 - 100)) < 1e-9);
 });
 
-test("hotfix cliente: pocket > rate → errore, nessun negativo", function () {
+test("hotfix cliente: base <= 0 → errore, nessun negativo", function () {
   const c = { rate26: 40, rate30: 40, pocketMoney: 1500 };
   assert.equal(formulas.getClientDailyPocketMoney(c), 50);
   assert.throws(function () {
     formulas.calcolaOvertimeCliente(c, "working", 30, 10, 1.25);
-  }, /pocket money giornaliero è superiore/i);
+  }, /rate cliente al netto del pocket money non è valido/i);
 });
 
 test("hotfix cliente: pocket cambia OT cliente, non OT tecnico", function () {
@@ -259,6 +287,7 @@ test("hotfix cliente: pocket cambia OT cliente, non OT tecnico", function () {
     10,
     1.25
   );
-  assert.equal(c0.prezzoOrario, 68.75);
-  assert.equal(c1.prezzoOrario, 62.5);
+  assert.equal(Number(c0.prezzoOrario.toFixed(2)), 79.33);
+  assert.equal(Number(c1.prezzoOrario.toFixed(2)), 73.08);
+  assert.ok(Math.abs(c0.clientWorkingOvertimeBase - c1.clientWorkingOvertimeBase - 50) < 1e-9);
 });

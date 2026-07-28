@@ -84,6 +84,7 @@ export function loadLegacyFormulas() {
     getEquivalent26Rate: sandbox.getEquivalent26Rate,
     getTechnicianMonthlyNet: sandbox.getTechnicianMonthlyNet,
     getClientDailyPocketMoney: sandbox.getClientDailyPocketMoney,
+    POCKET_MONEY_CALENDAR_DAYS: sandbox.POCKET_MONEY_CALENDAR_DAYS,
     validateInput: sandbox.validateInput
   };
 }

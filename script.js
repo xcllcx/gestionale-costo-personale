@@ -164,6 +164,15 @@ const OVERTIME_DEFAULTS = Object.freeze({
   giorniCalendar: 30
 });
 
+/**
+ * Regola commerciale: pocket money sempre calendar.
+ * Mai dividere per workingDays / 26.
+ */
+var POCKET_MONEY_CALENDAR_DAYS = 30;
+
+/** Working days di riferimento per conversione Calendar → Working (OT cliente). */
+var CLIENT_OVERTIME_WORKING_DAYS = 26;
+
 /** Etichette maggiorazione */
 const MAGG_LABELS = Object.freeze({
   "1": "Base (×1)",
@@ -1213,7 +1222,8 @@ function calcolaOvertimeTecnico(calc, metodo, giorniCalendar, oreLavorative, fat
 
 /**
  * Quota giornaliera pocket money per overtime cliente.
- * Sempre mensile ÷ 30 (voce calendar), anche se il rate selezionato è Working.
+ * Regola commerciale: sempre mensile ÷ POCKET_MONEY_CALENDAR_DAYS (30).
+ * Mai ÷ 26 né ÷ workingDays.
  * @param {object} calc
  * @returns {number}
  */
@@ -1222,19 +1232,28 @@ function getClientDailyPocketMoney(calc) {
     return 0;
   }
   const monthly = Number(calc.pocketMoney);
-  if (!Number.isFinite(monthly) || monthly <= 0) {
+  if (!Number.isFinite(monthly) || monthly === 0) {
     return 0;
   }
-  return monthly / 30;
+  if (monthly < 0) {
+    throw new Error(
+      "Il rate cliente al netto del pocket money non è valido. Verificare rate, pocket money, giorni e ore contrattuali."
+    );
+  }
+  return monthly / POCKET_MONEY_CALENDAR_DAYS;
 }
 
 /**
  * OVERTIME CLIENTE — prezzo orario (€/ora)
  *
- * Working:  (Rate26 − pocket/30) / oreLavorative × maggiorazione
- * Calendar: (Rate30 − pocket/30) / oreLavorative × maggiorazione
+ * Working:
+ *   (Rate26 − pocket/30) / ore × magg
  *
- * Il pocket money giornaliero è sempre mensile/30 (mai /26 né /workingDays).
+ * Calendar:
+ *   1) equivalentWorking = Rate30 × calendarDays / workingDays
+ *   2) (equivalentWorking − pocket/30) / ore × magg
+ *
+ * Il pocket money resta sempre calendar (÷ 30), anche dopo la conversione.
  *
  * @param {object} calc
  * @param {"working"|"calendar"} metodo
@@ -1245,6 +1264,26 @@ function getClientDailyPocketMoney(calc) {
  */
 function calcolaOvertimeCliente(calc, metodo, giorniCalendar, oreLavorative, fattoreMagg) {
   const steps = [];
+  const workingDays =
+    calc && Number(calc.workingDays) > 0
+      ? Number(calc.workingDays)
+      : CLIENT_OVERTIME_WORKING_DAYS;
+  const calendarDays =
+    Number(giorniCalendar) > 0
+      ? Number(giorniCalendar)
+      : OVERTIME_DEFAULTS.giorniCalendar;
+
+  if (!(workingDays > 0)) {
+    throw new Error(
+      "Il rate cliente al netto del pocket money non è valido. Verificare rate, pocket money, giorni e ore contrattuali."
+    );
+  }
+  if (!(oreLavorative > 0)) {
+    throw new Error(
+      "Il rate cliente al netto del pocket money non è valido. Verificare rate, pocket money, giorni e ore contrattuali."
+    );
+  }
+
   const dailyPocketMoney = getClientDailyPocketMoney(calc);
   const selectedDailyRate =
     metodo === "calendar" ? Number(calc.rate30) : Number(calc.rate26);
@@ -1252,14 +1291,24 @@ function calcolaOvertimeCliente(calc, metodo, giorniCalendar, oreLavorative, fat
   if (!Number.isFinite(selectedDailyRate) || selectedDailyRate <= 0) {
     throw new Error("Rate cliente non valido per il calcolo overtime.");
   }
-  if (dailyPocketMoney > selectedDailyRate) {
+
+  let clientEquivalentWorkingRate = selectedDailyRate;
+  if (metodo === "calendar") {
+    // Calendar → Working: rate × calendarDays / workingDays
+    clientEquivalentWorkingRate =
+      (selectedDailyRate * calendarDays) / workingDays;
+  }
+
+  const clientWorkingOvertimeBase =
+    clientEquivalentWorkingRate - dailyPocketMoney;
+
+  if (!(clientWorkingOvertimeBase > 0)) {
     throw new Error(
-      "Il pocket money giornaliero è superiore al rate cliente selezionato. Verificare i dati inseriti."
+      "Il rate cliente al netto del pocket money non è valido. Verificare rate, pocket money, giorni e ore contrattuali."
     );
   }
 
-  const clientOvertimeBaseDaily = selectedDailyRate - dailyPocketMoney;
-  const prezzoOrarioBase = clientOvertimeBaseDaily / oreLavorative;
+  const prezzoOrarioBase = clientWorkingOvertimeBase / oreLavorative;
   const prezzoOrario = prezzoOrarioBase * fattoreMagg;
 
   if (metodo === "working") {
@@ -1269,32 +1318,44 @@ function calcolaOvertimeCliente(calc, metodo, giorniCalendar, oreLavorative, fat
     );
   } else {
     steps.push(
-      "Metodo cliente: Calendar days (Rate 30" +
-        (giorniCalendar ? ", rif. " + giorniCalendar + " gg" : "") +
-        ")"
+      "Metodo cliente: Calendar days (Rate 30, " + calendarDays + " gg)"
     );
     steps.push(
       "Rate Calendar selezionato = " + formatCurrency(selectedDailyRate)
     );
+    steps.push(
+      "Equivalente Working = Rate Calendar × Calendar days ÷ Working days = " +
+        formatCurrency(selectedDailyRate) +
+        " × " +
+        calendarDays +
+        " ÷ " +
+        workingDays +
+        " = " +
+        formatCurrency(clientEquivalentWorkingRate)
+    );
   }
 
   steps.push(
-    "Pocket money giornaliero = Pocket mensile ÷ 30 = " +
+    "Pocket money giornaliero = Pocket mensile ÷ " +
+      POCKET_MONEY_CALENDAR_DAYS +
+      " = " +
       formatCurrency(Number(calc.pocketMoney) || 0) +
-      " ÷ 30 = " +
+      " ÷ " +
+      POCKET_MONEY_CALENDAR_DAYS +
+      " = " +
       formatCurrency(dailyPocketMoney)
   );
   steps.push(
-    "Base giornaliera overtime cliente = Rate selezionato − Pocket giornaliero = " +
-      formatCurrency(selectedDailyRate) +
+    "Base Working overtime cliente = Equivalente Working − Pocket giornaliero = " +
+      formatCurrency(clientEquivalentWorkingRate) +
       " − " +
       formatCurrency(dailyPocketMoney) +
       " = " +
-      formatCurrency(clientOvertimeBaseDaily)
+      formatCurrency(clientWorkingOvertimeBase)
   );
   steps.push(
-    "Prezzo orario base = Base giornaliera ÷ Ore lavorative = " +
-      formatCurrency(clientOvertimeBaseDaily) +
+    "Prezzo orario base = Base Working ÷ Ore lavorative = " +
+      formatCurrency(clientWorkingOvertimeBase) +
       " ÷ " +
       oreLavorative +
       " = " +
@@ -1314,14 +1375,19 @@ function calcolaOvertimeCliente(calc, metodo, giorniCalendar, oreLavorative, fat
   return {
     metodo,
     metodoLabel: METODO_LABELS[metodo],
-    giorniCalendar: metodo === "calendar" ? giorniCalendar : null,
+    giorniCalendar: metodo === "calendar" ? calendarDays : null,
+    workingDays: metodo === "calendar" ? workingDays : null,
     fattoreMagg,
     maggLabel: labelMaggiorazione(fattoreMagg),
     selectedDailyRate,
+    clientEquivalentWorkingRate,
     dailyPocketMoney,
-    clientOvertimeBaseDaily,
-    rateEquivalente26: null,
-    valoreMensileCalendar: null,
+    clientOvertimeBaseDaily: clientWorkingOvertimeBase,
+    clientWorkingOvertimeBase,
+    rateEquivalente26:
+      metodo === "calendar" ? clientEquivalentWorkingRate : null,
+    valoreMensileCalendar:
+      metodo === "calendar" ? selectedDailyRate * calendarDays : null,
     prezzoOrarioBase,
     prezzoOrario,
     steps
