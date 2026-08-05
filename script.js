@@ -89,7 +89,9 @@ const AppState = {
     generationStatus: "idle",
     generatedDocument: null,
     generatedFileName: ""
-  }
+  },
+  // Modulo locale Offerta Cliente (indipendente — non tocca calculation/overtime/draft/cvManager)
+  clientOffer: null
 };
 
 /** Espone AppState globalmente per debug e futuri moduli */
@@ -117,7 +119,7 @@ let currentCalculation = null;
  */
 let lastOvertime = null;
 
-/** Vista SPA attiva: "costo" | "overtime" | "draft" | "cvManager" */
+/** Vista SPA attiva: "costo" | "overtime" | "draft" | "cvManager" | "clientOffer" */
 let currentView = "costo";
 
 /**
@@ -1011,7 +1013,7 @@ function syncCurrentCalculation(result) {
 
 /**
  * Cambia vista SPA senza reload e senza perdere i dati dei form.
- * @param {"costo"|"overtime"|"draft"} view
+ * @param {"costo"|"overtime"|"draft"|"cvManager"|"clientOffer"} view
  */
 function switchView(view) {
   currentView = view;
@@ -1026,12 +1028,16 @@ function switchView(view) {
   setVisible("viewOvertime", view === "overtime");
   setVisible("viewDraft", view === "draft");
   setVisible("viewCvManager", view === "cvManager");
+  setVisible("viewClientOffer", view === "clientOffer");
 
   if (view === "overtime") {
     refreshOvertimeImportedPanel();
   }
   if (view === "draft") {
     refreshDraftBindings();
+  }
+  if (view === "clientOffer" && typeof window.__refreshClientOffer === "function") {
+    window.__refreshClientOffer();
   }
 }
 
@@ -2211,7 +2217,7 @@ const DRAFT_TEMPLATES = Object.freeze({
   alloggioCliente: "A carico del Cliente.",
   alloggioCandidato: "A suo carico.",
   alloggioContributo:
-    "Contributo fino a un massimo di euro {importo} a fronte di presentazione pezze giustificative.",
+    "Contributo fino a un massimo di Euro {importo} a fronte di presentazione pezze giustificative.",
 
   trasportiCliente: "A carico del Cliente.",
   trasportiCandidato: "A suo carico.",
@@ -2272,19 +2278,68 @@ function applyDraftTemplate(template, vars) {
 }
 
 /**
- * Numero in formato italiano (es. 3.500,00) senza simbolo valuta.
- * @param {number} value
+ * Parse importi IT/EN: 1000 | 1.000 | 1.000,00 | 1000,00 | 1000.00 | 1,500.00
+ * Allineato a modules/clientOffer/transform.parseMoneyInput.
+ * @param {any} value
+ * @returns {number|null}
+ */
+function parseDraftMoneyInput(value) {
+  if (value === undefined || value === null || value === "") return null;
+  if (typeof value === "number") {
+    return Number.isFinite(value) ? value : null;
+  }
+  let s = String(value)
+    .trim()
+    .replace(/\s/g, "")
+    .replace(/€/gi, "")
+    .replace(/euro/gi, "");
+  if (!s) return null;
+  if (
+    /^\d{1,3}(\.\d{3})+(,\d+)?$/.test(s) ||
+    (/^\d+,\d+$/.test(s) && s.indexOf(".") < 0)
+  ) {
+    s = s.replace(/\./g, "").replace(",", ".");
+  } else if (/^\d+\.\d{3},\d+$/.test(s)) {
+    s = s.replace(/\./g, "").replace(",", ".");
+  } else {
+    s = s.replace(/,/g, "");
+  }
+  const n = Number(s);
+  return Number.isFinite(n) ? n : null;
+}
+
+/**
+ * Numero in formato italiano (es. 1.500,00) senza simbolo valuta.
+ * Accetta number o stringhe IT/EN; non altera date/proposal/rotation.
+ * Implementazione deterministica (indipendente dalla locale Node).
+ * @param {any} value
  * @returns {string}
  */
 function formatDraftItNumber(value) {
-  const n = Number(value);
-  if (!Number.isFinite(n)) {
+  const n =
+    typeof value === "number" && Number.isFinite(value)
+      ? value
+      : parseDraftMoneyInput(value);
+  if (n == null || !Number.isFinite(n)) {
     return "";
   }
-  return n.toLocaleString("it-IT", {
-    minimumFractionDigits: 2,
-    maximumFractionDigits: 2
-  });
+  const fixed = Math.round(n * 100) / 100;
+  const neg = fixed < 0;
+  const abs = Math.abs(fixed);
+  const parts = abs.toFixed(2).split(".");
+  const intPart = parts[0].replace(/\B(?=(\d{3})+(?!\d))/g, ".");
+  return (neg ? "-" : "") + intPart + "," + parts[1];
+}
+
+/**
+ * Importo economico per Word Draft: "Euro 1.500,00".
+ * @param {any} value
+ * @returns {string}
+ */
+function formatDraftEuroAmount(value) {
+  const formatted = formatDraftItNumber(value);
+  if (!formatted) return "";
+  return "Euro " + formatted;
 }
 
 /**
@@ -2431,9 +2486,10 @@ function buildDraftOvertimeText(draft) {
     if (/[A-Za-z]{8,}/.test(manual) && !/^\d/.test(manual)) {
       return manual;
     }
-    const importo = manual.replace(/^Euro\s+/i, "").trim();
+    const rawImporto = manual.replace(/^Euro\s+/i, "").trim();
+    const formatted = formatDraftItNumber(rawImporto);
     return applyDraftTemplate(DRAFT_TEMPLATES.straordinariEuro, {
-      importo: importo
+      importo: formatted || rawImporto
     });
   }
 
@@ -2525,9 +2581,10 @@ function buildDraftWordRows() {
   } else if (accommodation.mode === "candidato") {
     alloggio = DRAFT_TEMPLATES.alloggioCandidato;
   } else if (accommodation.mode === "contributo") {
-    const det = (accommodation.detail || "").trim() || "…";
+    const detRaw = (accommodation.detail || "").trim();
+    const formatted = formatDraftItNumber(detRaw);
     alloggio = applyDraftTemplate(DRAFT_TEMPLATES.alloggioContributo, {
-      importo: det
+      importo: formatted || detRaw || "…"
     });
   } else if (accommodation.mode === "personalizzato") {
     alloggio = (accommodation.detail || "").trim() || "—";
@@ -3423,6 +3480,27 @@ function registerRev03Modules() {
     .catch(function (err) {
       console.warn(
         "[REV03] CV Manager non caricato (serve HTTP locale o Pages, non file://):",
+        err
+      );
+    });
+
+  // Cache-bust: evita UI/state JS obsoleti in cache browser dopo refactor
+  import("./modules/clientOffer/index.js?v=co-template-b-20260731")
+    .then(function (mod) {
+      if (mod && typeof mod.refreshClientOfferView === "function") {
+        window.__refreshClientOffer = mod.refreshClientOfferView;
+      }
+      try {
+        if (mod && typeof mod.initClientOffer === "function") {
+          mod.initClientOffer(AppState);
+        }
+      } catch (err) {
+        console.error("[ClientOffer] init fallita:", err);
+      }
+    })
+    .catch(function (err) {
+      console.warn(
+        "[ClientOffer] modulo non caricato (serve HTTP locale, non file://):",
         err
       );
     });

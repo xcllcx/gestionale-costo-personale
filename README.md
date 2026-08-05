@@ -1,8 +1,8 @@
 # Managing Platform — Recruitment & Pricing Suite
 
-Applicazione per calcolo costi personale, overtime, draft tecnico e CV Manager aziendale.
+Applicazione per calcolo costi personale, overtime, draft tecnico, offerta cliente e CV Manager aziendale.
 
-**Versione corrente:** `REV03_SHARED`
+**Versione corrente:** `REV04_OFFERTA_CLIENTE_STABLE`
 
 ## VERSIONE GITHUB PAGES
 
@@ -13,16 +13,23 @@ Link: https://xcllcx.github.io/gestionale-costo-personale/
 - Calcolo Costi
 - Overtime
 - Draft Tecnico
+- **Offerta Cliente** (template Word B caricato manualmente)
+- CV Manager (UI + modalità Browser)
 - Navigazione completa e generazione documenti nel browser
+
+### Offerta Cliente (su GitHub Pages)
+
+- Caricare il template placeholder da `templates/client_offer/OFFERTA_CLIENTE_TEMPLATE_B.docx` (o master aziendale)
+- Nessun fallback al vecchio template A
+- Import dati da Costo / Overtime / Draft; rate Calendar / Working / Lump Sum mensile
 
 ### CV Manager (su GitHub Pages)
 
 - Interfaccia disponibile
 - Modalità **Browser — API key personale**: ogni utente inserisce la propria chiave (mai nel repository)
 - Modalità Sicura non disponibile (Pages non esegue Express)
-- Opzione per non salvare la chiave sul dispositivo (solo memoria di sessione)
 
-## Avvio locale completo (CV Manager AI)
+## Avvio locale completo
 
 ```bash
 cp .env.example .env
@@ -31,17 +38,7 @@ npm install
 npm run staging
 ```
 
-Aprire `http://127.0.0.1:8767/`
-
-Lo staging server serve frontend statico + `GET /api/health` + `POST /api/analyze-cv`.
-
-## Solo frontend statico (senza AI)
-
-```bash
-python -m http.server 8767
-```
-
-Su localhost è disponibile la modalità locale di sviluppo (API key nel browser) — vietata in pubblicazione.
+Oppure launcher: `AVVIA_REV04.bat` → `http://127.0.0.1:8767/`
 
 ## Test
 
@@ -49,7 +46,7 @@ Su localhost è disponibile la modalità locale di sviluppo (API key nel browser
 npm test
 ```
 
-Suite smoke senza chiave OpenAI (mock backend). Include verifica modalità GitHub Pages simulata.
+Suite smoke senza chiave OpenAI (mock backend).
 
 ## CI
 
@@ -57,18 +54,15 @@ GitHub Actions: `.github/workflows/ci.yml` esegue `npm test`.
 
 ## Documentazione
 
+- `REVISION_INFO.md` — revisione corrente
 - `DEPLOYMENT.md` — Pages vs staging locale
-- `PROJECT_HANDOVER_REV03.md` — contesto CV Manager
-- `VERSION.md` — profilo release
-- `.env.example` — variabili (valori fittizi)
+- `CHANGELOG.md` — storico modifiche
+- `VERSION.md` — profilo versione
 
 ## Sicurezza
 
-- Nessuna API key nel client pubblico
-- Nessun CV reale nel repository
-- Modalità localDev solo su localhost
-- Non committare `.env`
+Non committare: `.env`, `key.txt`, API key, CV reali, cedolini, backup locali, offerte Word compilate.
 
-## Licenza / uso
+## REV05
 
-Software interno personale. Non pubblicare segreti.
+Non inclusa in questa release (sviluppo solo locale futuro).

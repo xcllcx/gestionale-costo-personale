@@ -1,5 +1,24 @@
 # CHANGELOG
 
+## REV04_OFFERTA_CLIENTE_STABLE (2026-08-05)
+
+### Added
+- Client Offer module (Offerta Cliente)
+- Word template-based offer generation (template B aziendale, caricamento manuale)
+- Automatic data import from Cost, Overtime and Draft
+- Working / Calendar / Lump Sum (monthly) rate support
+- Rotation, logistics and proposal-number management
+- Local launcher (`AVVIA_REV04.*` / `CHIUDI_REV04.*`) on port 8767
+
+### Changed
+- Reordered tabs: Costo → Overtime → Draft → Offerta Cliente → CV Manager
+- Code cleanup and regression tests for Client Offer
+
+### Notes
+- REV05 (Simulazione Costo Reale TES) **non** inclusa
+- Nessun fallback al vecchio template A
+- Template placeholder in `templates/client_offer/` (senza offerte compilate con dati cliente)
+
 ## HOTFIX Overtime cliente — Calendar→Working + pocket /30 (2026-07-28)
 
 ### Fixed

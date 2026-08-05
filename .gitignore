@@ -13,27 +13,33 @@ node_modules/
 .env.*.local
 key.txt
 *.pem
+*.p12
+*.pfx
 
 # Backup locali (solo PC — non pubblicare su GitHub)
 Backup_REV0/
-BACKUP_REV01_STABLE/
-BACKUP_BEFORE_APPSTATE/
-BACKUP_BEFORE_DRAFT_UI/
-BACKUP_BEFORE_DRAFT_WORD/
-BACKUP_BEFORE_REV02_3/
-BACKUP_REV02_STABLE/
-BACKUP_BEFORE_REV03_FASE_A/
-BACKUP_BEFORE_REV03_B1/
-BACKUP_BEFORE_REV03_B2/
-BACKUP_BEFORE_REV03_QP01/
-BACKUP_BEFORE_REV03_QP02/
-BACKUP_BEFORE_REV03_QP03/
-BACKUP_BEFORE_REV03_UI_POLISH/
-BACKUP_BEFORE_REV03_STABLE/
-BACKUP_BEFORE_REV03_RC/
-tmp_cv_fixtures/
+BACKUP_*/
+BACKUP_BEFORE_*/
+BACKUP_PRE_*/
+BACKUP_REV*/
+REV04_OFFERTA_CLIENTE_STABLE/
+BACKUP_REV04_OFFERTA_CLIENTE_STABLE/
 
-# Output locali / cache
+# Output locali / fixture reali / cache
+tmp_cv_fixtures/
+output_test/
 coverage/
 .cache/
 *.tmp
+.rev04_server.pid
+
+# Campioni offerta compilati / riferimenti con dati cliente (non pubblicare)
+templates/client_offer/OFF_234LC_*.docx
+templates/client_offer/OFF_239LC_*.docx
+
+# Cedolini / documenti personali (REV05 locale — non pubblicare)
+cedolini/
+**/cedolini/
+*cedolino*
+*busta_paga*
+*payslip*

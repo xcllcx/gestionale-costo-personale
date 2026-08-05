@@ -41,6 +41,9 @@
       <button type="button" class="nav-tab" data-view="draft" id="tabDraft" aria-pressed="false">
         Draft Tecnico
       </button>
+      <button type="button" class="nav-tab" data-view="clientOffer" id="tabClientOffer" aria-pressed="false">
+        Offerta Cliente
+      </button>
       <button type="button" class="nav-tab" data-view="cvManager" id="tabCvManager" aria-pressed="false">
         CV Manager
       </button>
@@ -1032,6 +1035,308 @@
 
       </div>
     </div>
+
+    <!-- ==========================================================
+         VIEW 5 — OFFERTA CLIENTE (template Word fisso — locale)
+         ========================================================== -->
+    <div id="viewClientOffer" class="spa-view" data-view-panel="clientOffer" hidden>
+      <form id="formClientOffer" class="co-stack" autocomplete="off" novalidate>
+
+        <p class="co-status" id="coStatus" role="status"></p>
+
+        <div class="actions co-actions-top">
+          <button type="button" class="btn btn-primary" id="btnCoNewOffer">Nuova offerta</button>
+          <button type="button" class="btn btn-secondary" id="btnCoUpdateModules">Aggiorna dati dai moduli</button>
+          <button type="button" class="btn btn-secondary" id="btnCoReset">Reset offerta</button>
+        </div>
+
+        <section class="card" aria-labelledby="co-title-tpl">
+          <h2 id="co-title-tpl" class="card-title">Template Word aziendale</h2>
+          <p class="card-subtitle">Obbligatorio. Caricare il template aziendale (versione B con placeholder). Non esiste più un template automatico interno.</p>
+          <p class="co-status" id="coTemplateStatus">Nessun template caricato.</p>
+          <div class="imported-grid hidden" id="coTemplateMeta">
+            <div class="imported-item"><span class="imported-label">Nome</span><span class="imported-value" id="coTemplateName">—</span></div>
+            <div class="imported-item"><span class="imported-label">Dimensione</span><span class="imported-value" id="coTemplateSize">—</span></div>
+          </div>
+          <div class="actions cv-card-actions">
+            <button type="button" class="btn btn-primary" id="btnCoCaricaTemplate">Carica template</button>
+            <button type="button" class="btn btn-secondary hidden" id="btnCoSostituisciTemplate">Sostituisci</button>
+            <button type="button" class="btn btn-secondary hidden" id="btnCoRimuoviTemplate">Rimuovi</button>
+          </div>
+          <input type="file" id="coTemplateInput" accept=".docx,application/vnd.openxmlformats-officedocument.wordprocessingml.document" hidden />
+        </section>
+
+        <section class="card" aria-labelledby="co-title-offer">
+          <h2 id="co-title-offer" class="card-title">1. Dati offerta</h2>
+          <div class="co-grid">
+            <div class="field"><label for="coDate">Data offerta</label><input type="date" id="coDate" name="coDate" /></div>
+            <div class="field"><label for="coProposalNumber">Numero proposta</label><input type="text" id="coProposalNumber" name="coProposalNumber" /></div>
+            <div class="field"><label for="coSubject">Subject</label><input type="text" id="coSubject" name="coSubject" /></div>
+            <div class="field"><label for="coLocation">Location</label><input type="text" id="coLocation" name="coLocation" /></div>
+            <div class="field co-span-2"><label for="coFileName">Nome file finale</label><input type="text" id="coFileName" name="coFileName" placeholder="OFF_….docx" /></div>
+          </div>
+          <div class="actions cv-card-actions">
+            <button type="button" class="btn btn-secondary" id="btnCoUseNextNumber">Usa prossimo numero</button>
+            <button type="button" class="btn btn-secondary" id="btnCoRegenName">Rigenera nome automatico</button>
+            <button type="button" class="btn btn-secondary" id="btnCoSuggestProposal">Suggerisci Proposal Number</button>
+          </div>
+        </section>
+
+        <section class="card" aria-labelledby="co-title-service">
+          <h2 id="co-title-service" class="card-title">2. Servizio e candidato</h2>
+          <div class="co-grid">
+            <div class="field"><label for="coPosition">Mansione</label><input type="text" id="coPosition" name="coPosition" /></div>
+            <div class="field"><label for="coAssigned">Candidato assegnato</label><input type="text" id="coAssigned" name="coAssigned" /></div>
+            <div class="field"><label for="coActivityLocation">Location attività</label><input type="text" id="coActivityLocation" name="coActivityLocation" /></div>
+            <div class="field"><label for="coSupportType">Tipo di supporto</label><input type="text" id="coSupportType" name="coSupportType" /></div>
+          </div>
+        </section>
+
+        <section class="card" aria-labelledby="co-title-client">
+          <h2 id="co-title-client" class="card-title">2b. Cliente (opzionale)</h2>
+          <p class="card-subtitle">Se vuoti, nel Word restano i placeholder {{CLIENT_NAME}}, ecc. Il Proposal Number usa {{CLIENT_NAME}} se assente.</p>
+          <div class="co-grid">
+            <div class="field co-span-2"><label for="coClientName">Cliente</label><input type="text" id="coClientName" name="coClientName" /></div>
+            <div class="field co-span-2"><label for="coClientAddress1">Indirizzo 1</label><input type="text" id="coClientAddress1" name="coClientAddress1" /></div>
+            <div class="field co-span-2"><label for="coClientAddress2">Indirizzo 2</label><input type="text" id="coClientAddress2" name="coClientAddress2" /></div>
+            <div class="field"><label for="coContactTitle">Titolo contatto</label><input type="text" id="coContactTitle" name="coContactTitle" placeholder="Eng." /></div>
+            <div class="field"><label for="coContactName">Nome contatto</label><input type="text" id="coContactName" name="coContactName" /></div>
+            <div class="field"><label for="coContactSurname">Cognome contatto</label><input type="text" id="coContactSurname" name="coContactSurname" /></div>
+          </div>
+        </section>
+
+        <section class="card" aria-labelledby="co-title-rem">
+          <h2 id="co-title-rem" class="card-title">3. Remunerazione</h2>
+          <div class="co-grid">
+            <div class="field">
+              <label for="coRateType">Tipo rate</label>
+              <select id="coRateType" name="coRateType">
+                <option value="calendar">Calendar Day</option>
+                <option value="working">Working Day</option>
+                <option value="lumpSum">Lump Sum</option>
+              </select>
+            </div>
+            <div class="field" id="coSelectedRateWrap">
+              <label for="coSelectedRate" id="coSelectedRateLabel">Calendar Rate</label>
+              <input type="number" step="0.01" id="coSelectedRate" name="coSelectedRate" />
+            </div>
+            <div class="field hidden" id="coMonthlyLumpWrap">
+              <label for="coMonthlyLump">Monthly Rate</label>
+              <input type="number" step="0.01" id="coMonthlyLump" name="coMonthlyLump" />
+            </div>
+            <div class="field"><label for="coMonthlyPocket">Pocket money mensile</label><input type="number" step="0.01" id="coMonthlyPocket" name="coMonthlyPocket" /></div>
+            <div class="field" id="coDailyPocketWrap"><label for="coDailyPocket">Pocket money giornaliero</label><input type="number" step="0.01" id="coDailyPocket" name="coDailyPocket" /></div>
+            <div class="field" id="coOfferRateWrap"><label for="coOfferRate">Daily rate in offerta</label><input type="number" step="0.01" id="coOfferRate" name="coOfferRate" /></div>
+            <div class="field"><label for="coHours">Working hours / giorno</label><input type="number" step="1" id="coHours" name="coHours" /></div>
+            <div class="field"><label for="coDaysWeek">Giorni lavorativi / settimana</label><input type="number" step="1" id="coDaysWeek" name="coDaysWeek" /></div>
+            <div class="field">
+              <label for="coPocketMode">Modalità pocket money</label>
+              <select id="coPocketMode" name="coPocketMode">
+                <option value="separate">Separato dal daily rate</option>
+                <option value="included">Incluso nel daily rate</option>
+                <option value="na">Non applicabile</option>
+              </select>
+            </div>
+          </div>
+        </section>
+
+        <section class="card" aria-labelledby="co-title-ot">
+          <h2 id="co-title-ot" class="card-title">4. Overtime Cliente</h2>
+          <div class="co-grid">
+            <div class="field">
+              <label for="coOtMode">Modalità</label>
+              <select id="coOtMode" name="coOtMode">
+                <option value="import">Importa</option>
+                <option value="manual">Manuale</option>
+                <option value="na">N/A</option>
+                <option value="custom">Custom</option>
+              </select>
+            </div>
+            <div class="field"><label for="coOtMs">OT Monday–Saturday (€/h)</label><input type="number" step="0.01" id="coOtMs" name="coOtMs" /></div>
+            <div class="field"><label for="coOtMsMult">Moltiplicatore</label><input type="number" step="0.01" id="coOtMsMult" name="coOtMsMult" /></div>
+            <div class="field"><label for="coOtSun">Sunday/Public Holiday (€/h)</label><input type="number" step="0.01" id="coOtSun" name="coOtSun" placeholder="vuoto = omesso" /></div>
+            <div class="field"><label for="coOtSunMult">Moltiplicatore</label><input type="number" step="0.01" id="coOtSunMult" name="coOtSunMult" /></div>
+            <div class="field"><label for="coOtThreshold">Soglia settimanale (ore)</label><input type="number" step="1" id="coOtThreshold" name="coOtThreshold" /></div>
+            <div class="field co-span-2 hidden" id="coOtCustomWrap"><label for="coOtCustom">Testo custom</label><textarea id="coOtCustom" name="coOtCustom" rows="2"></textarea></div>
+          </div>
+        </section>
+
+        <section class="card" aria-labelledby="co-title-log">
+          <h2 id="co-title-log" class="card-title">5. Logistica</h2>
+
+          <h3 class="co-subhead">A. Accommodation</h3>
+          <div class="co-grid">
+            <div class="field">
+              <label for="coAccMode">Accommodation</label>
+              <select id="coAccMode" name="coAccMode">
+                <option value="client_reimbursed">At Client charge / reimbursed</option>
+                <option value="our_lump">At our charge – monthly lump sum</option>
+                <option value="our_charge">At our charge</option>
+                <option value="na">N/A</option>
+                <option value="custom">Custom</option>
+              </select>
+            </div>
+            <div class="field hidden" id="coAccLumpWrap"><label for="coAccLump">Acc. lump sum</label><input type="number" step="0.01" id="coAccLump" name="coAccLump" /></div>
+            <div class="field co-span-2 hidden" id="coAccCustomWrap"><label for="coAccCustom">Acc. custom</label><input type="text" id="coAccCustom" name="coAccCustom" /></div>
+            <div class="field co-span-2">
+              <label class="checkbox-row"><input type="checkbox" id="coCombinedLump" name="coCombinedLump" /> Combined accommodation and transportation lump sum</label>
+            </div>
+            <div id="coCombinedWrap" class="field hidden"><label for="coCombinedAmount">Importo combined</label><input type="number" step="0.01" id="coCombinedAmount" name="coCombinedAmount" /></div>
+          </div>
+
+          <h3 class="co-subhead">B. Local transportation</h3>
+          <div class="co-grid">
+            <div class="field">
+              <label for="coTrMode">Local transportation</label>
+              <select id="coTrMode" name="coTrMode">
+                <option value="client_reimbursed">At Client charge / reimbursed</option>
+                <option value="our_lump">At our charge – monthly lump sum</option>
+                <option value="our_charge">At our charge – no reimbursement</option>
+                <option value="na">N/A</option>
+                <option value="custom">Custom</option>
+              </select>
+            </div>
+            <div class="field hidden" id="coTrLumpWrap"><label for="coTrLump">Tr. lump sum</label><input type="number" step="0.01" id="coTrLump" name="coTrLump" /></div>
+            <div class="field co-span-2 hidden" id="coTrCustomWrap"><label for="coTrCustom">Tr. custom</label><input type="text" id="coTrCustom" name="coTrCustom" /></div>
+          </div>
+
+          <h3 class="co-subhead">C. Travelling day</h3>
+          <div class="co-grid">
+            <div class="field">
+              <label for="coTravelDay">Travelling day</label>
+              <select id="coTravelDay" name="coTravelDay">
+                <option value="100">100% working day</option>
+                <option value="50">50% working day</option>
+                <option value="na">N/A</option>
+                <option value="custom">Custom</option>
+              </select>
+            </div>
+            <div class="field hidden" id="coTravelCustomWrap"><label for="coTravelCustom">Travelling custom</label><input type="text" id="coTravelCustom" name="coTravelCustom" /></div>
+          </div>
+
+          <h3 class="co-subhead">D. Ticket Flight</h3>
+          <div class="co-grid">
+            <div class="field">
+              <label for="coTicket">Ticket Flight</label>
+              <select id="coTicket" name="coTicket">
+                <option value="standard">Standard</option>
+                <option value="client">At Client charge</option>
+                <option value="reimbursed">Reimbursed upon receipt</option>
+                <option value="our">At our charge</option>
+                <option value="na">N/A</option>
+                <option value="custom">Custom</option>
+              </select>
+            </div>
+            <div class="field hidden" id="coTicketCustomWrap"><label for="coTicketCustom">Ticket custom</label><input type="text" id="coTicketCustom" name="coTicketCustom" /></div>
+          </div>
+
+          <h3 class="co-subhead">E. Mob / Demob</h3>
+          <div class="co-grid">
+            <div class="field">
+              <label for="coMob">Mob / Demob</label>
+              <select id="coMob" name="coMob">
+                <option value="standard">Standard</option>
+                <option value="client">At Client charge</option>
+                <option value="reimbursed">Reimbursed upon receipt</option>
+                <option value="our">At our charge</option>
+                <option value="na">N/A</option>
+                <option value="custom">Custom</option>
+              </select>
+            </div>
+            <div class="field hidden" id="coMobCustomWrap"><label for="coMobCustom">Mob custom</label><input type="text" id="coMobCustom" name="coMobCustom" /></div>
+          </div>
+
+          <h3 class="co-subhead">F. Own car</h3>
+          <div class="co-grid">
+            <div class="field"><label class="checkbox-row"><input type="checkbox" id="coOwnCar" name="coOwnCar" checked /> Own car €/km</label></div>
+            <div class="field hidden" id="coOwnCarKmWrap"><label for="coOwnCarKm">€/km</label><input type="number" step="0.01" id="coOwnCarKm" name="coOwnCarKm" value="0.5" /></div>
+          </div>
+        </section>
+
+        <section class="card" aria-labelledby="co-title-rot">
+          <h2 id="co-title-rot" class="card-title">6. Rotation e date</h2>
+          <div class="co-grid">
+            <div class="field">
+              <label for="coRotMode">Rotation</label>
+              <select id="coRotMode" name="coRotMode">
+                <option value="defined">Definita</option>
+                <option value="tbd">TBD</option>
+                <option value="na">N/A</option>
+                <option value="custom">Custom</option>
+                <option value="hide">Nascondi sezione</option>
+              </select>
+            </div>
+            <div class="field hidden" id="coRotWorkWrap"><label for="coRotWork">Work days</label><input type="number" id="coRotWork" name="coRotWork" /></div>
+            <div class="field hidden" id="coRotRestWrap"><label for="coRotRest">Rest days</label><input type="number" id="coRotRest" name="coRotRest" /></div>
+            <div class="field co-span-2 hidden" id="coRotCustomWrap"><label for="coRotCustom">Rotation custom</label><input type="text" id="coRotCustom" name="coRotCustom" /></div>
+            <div class="field">
+              <label for="coStartMode">Start display</label>
+              <select id="coStartMode" name="coStartMode">
+                <option value="within">Within + mese/anno</option>
+                <option value="month_year">Mese e anno</option>
+                <option value="full">Data completa</option>
+                <option value="manual">Manuale</option>
+                <option value="tbd">TBD</option>
+                <option value="na">N/A</option>
+              </select>
+            </div>
+            <div class="field"><label for="coStartDate">Data inizio</label><input type="date" id="coStartDate" name="coStartDate" /></div>
+            <div class="field hidden" id="coStartManualWrap"><label for="coStartManual">Start manuale</label><input type="text" id="coStartManual" name="coStartManual" /></div>
+            <div class="field">
+              <label for="coEndMode">End display</label>
+              <select id="coEndMode" name="coEndMode">
+                <option value="within">Within + mese/anno</option>
+                <option value="month_year">Mese e anno</option>
+                <option value="full">Data completa</option>
+                <option value="manual">Manuale</option>
+                <option value="tbd">TBD</option>
+                <option value="na">N/A</option>
+              </select>
+            </div>
+            <div class="field"><label for="coEndDate">Data fine</label><input type="date" id="coEndDate" name="coEndDate" /></div>
+            <div class="field hidden" id="coEndManualWrap"><label for="coEndManual">End manuale</label><input type="text" id="coEndManual" name="coEndManual" /></div>
+          </div>
+        </section>
+
+        <details class="card" id="coAdvancedSettings">
+          <summary id="co-title-seq" class="card-title">Configurazione avanzata — progressivo offerte</summary>
+          <p class="card-subtitle">Imposta l’ultimo numero già utilizzato (es. 239). La prossima «Nuova offerta» userà 240. Non compare nel flusso operativo principale.</p>
+          <p class="co-status" id="coSequenceHint"></p>
+          <div class="co-grid">
+            <div class="field">
+              <label for="coLastSequenceNumber">Ultimo numero offerta utilizzato</label>
+              <input type="number" id="coLastSequenceNumber" name="coLastSequenceNumber" min="0" step="1" />
+            </div>
+          </div>
+          <div class="actions cv-card-actions">
+            <button type="button" class="btn btn-secondary" id="btnCoSaveLastSequence">Salva ultimo numero</button>
+          </div>
+        </details>
+
+        <section class="card" aria-labelledby="co-title-sum">
+          <h2 id="co-title-sum" class="card-title">Riepilogo</h2>
+          <div class="imported-grid">
+            <div class="imported-item"><span class="imported-label">Subject</span><span class="imported-value" id="coSumSubject">—</span></div>
+            <div class="imported-item"><span class="imported-label">Location</span><span class="imported-value" id="coSumLocation">—</span></div>
+            <div class="imported-item"><span class="imported-label">Position</span><span class="imported-value" id="coSumPosition">—</span></div>
+            <div class="imported-item"><span class="imported-label">Candidate</span><span class="imported-value" id="coSumCandidate">—</span></div>
+            <div class="imported-item"><span class="imported-label">Daily rate</span><span class="imported-value" id="coSumRate">—</span></div>
+            <div class="imported-item"><span class="imported-label">Pocket money</span><span class="imported-value" id="coSumPocket">—</span></div>
+            <div class="imported-item"><span class="imported-label">Overtime</span><span class="imported-value" id="coSumOt">—</span></div>
+            <div class="imported-item"><span class="imported-label">Accommodation</span><span class="imported-value" id="coSumAcc">—</span></div>
+            <div class="imported-item"><span class="imported-label">Transportation</span><span class="imported-value" id="coSumTr">—</span></div>
+            <div class="imported-item"><span class="imported-label">Rotation</span><span class="imported-value" id="coSumRot">—</span></div>
+            <div class="imported-item"><span class="imported-label">Start</span><span class="imported-value" id="coSumStart">—</span></div>
+            <div class="imported-item"><span class="imported-label">End</span><span class="imported-value" id="coSumEnd">—</span></div>
+          </div>
+          <div class="actions co-download-actions">
+            <button type="button" class="btn btn-export" id="btnCoDownloadWord">Scarica offerta Word</button>
+          </div>
+        </section>
+
+      </form>
+    </div>
+
   </main>
 
   <footer class="app-footer">
@@ -1044,6 +1349,6 @@
   <!-- Libreria docx (browser, senza Node.js) per export .docx -->
   <script src="lib/docx.min.js"></script>
   <!-- Logica applicativa legacy (REV02_STABLE) + registrazione moduli REV03 -->
-  <script src="script.js?v=ot-client-cal2wrk-20260728"></script>
+  <script src="script.js?v=co-template-b-20260731"></script>
 </body>
 </html>

@@ -1,0 +1,24 @@
+Managing Platform — REV04_OFFERTA_CLIENTE
+========================================
+
+AVVIO (doppio clic)
+-------------------
+1. Preferito:  AVVIA_REV04_SILENZIOSO.vbs
+   oppure il collegamento Desktop "Managing Platform REV04"
+2. Alternativa: AVVIA_REV04.bat
+
+Si apre automaticamente: http://127.0.0.1:8767/
+
+CHIUSURA SERVER
+---------------
+CHIUDI_REV04.bat
+Chiude solo il server di QUESTA cartella (PID dedicato).
+Non termina tutti i processi Node/Python del PC.
+
+REQUISITI
+---------
+- Node.js installato (https://nodejs.org)
+- Cartella node_modules presente (già inclusa in questa copia)
+
+NON aprire index.html con doppio clic (file://): non funziona.
+Usare sempre il launcher HTTP.

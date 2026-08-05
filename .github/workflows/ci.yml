@@ -1,4 +1,4 @@
-name: CI — REV03 Release Candidate
+name: CI — REV04 Offerta Cliente Stable
 
 on:
   push:

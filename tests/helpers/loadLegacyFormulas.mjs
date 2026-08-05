@@ -85,6 +85,13 @@ export function loadLegacyFormulas() {
     getTechnicianMonthlyNet: sandbox.getTechnicianMonthlyNet,
     getClientDailyPocketMoney: sandbox.getClientDailyPocketMoney,
     POCKET_MONEY_CALENDAR_DAYS: sandbox.POCKET_MONEY_CALENDAR_DAYS,
-    validateInput: sandbox.validateInput
+    validateInput: sandbox.validateInput,
+    formatDraftItNumber: sandbox.formatDraftItNumber,
+    formatDraftEuroAmount: sandbox.formatDraftEuroAmount,
+    parseDraftMoneyInput: sandbox.parseDraftMoneyInput,
+    applyDraftTemplate: sandbox.applyDraftTemplate,
+    DRAFT_TEMPLATES: sandbox.DRAFT_TEMPLATES,
+    buildDraftWordRows: sandbox.buildDraftWordRows,
+    AppState: sandbox.AppState
   };
 }
