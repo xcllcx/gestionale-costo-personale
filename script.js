@@ -1813,6 +1813,7 @@ function syncDraftStateFromForm() {
       : null;
 
   AppState.draft = {
+    language: readDraftRadio("draftLanguage") || "it",
     project: {
       posizione: (document.getElementById("draftPosizione") || {}).value || "",
       localita: (document.getElementById("draftLocalita") || {}).value || "",
@@ -1891,6 +1892,14 @@ function refreshDraftBindings() {
   }
 
   syncDraftConditionalFields();
+
+  const languageHint = document.getElementById("draftLanguageHint");
+  if (languageHint) {
+    languageHint.textContent =
+      readDraftRadio("draftLanguage") === "en"
+        ? "The document will be generated in English."
+        : "Il documento sarà generato in italiano.";
+  }
 
   const calc = AppState.calculation;
   const remAvailable = !!(calc && Number.isFinite(Number(calc.netto)));
@@ -1983,6 +1992,13 @@ function initDraftModule() {
   const onDraftChange = function () {
     syncDraftConditionalFields();
     syncDraftStateFromForm();
+    const languageHint = document.getElementById("draftLanguageHint");
+    if (languageHint) {
+      languageHint.textContent =
+        readDraftRadio("draftLanguage") === "en"
+          ? "The document will be generated in English."
+          : "Il documento sarà generato in italiano.";
+    }
   };
 
   form.addEventListener("input", onDraftChange);
@@ -2262,6 +2278,86 @@ const DRAFT_TEMPLATES = Object.freeze({
     "{schema}. In fase di turnazione saranno riconosciuti i giorni di viaggio; le spese di viaggio saranno rimborsate a fronte di presentazione di ricevute per biglietti / carburante / pedaggi / altro. I giorni di turnazione non saranno remunerati."
 });
 
+/** English contract-draft wording, aligned to the user-approved Sweden draft. */
+const DRAFT_TEMPLATES_EN = Object.freeze({
+  orario60:
+    "Up to 60 hours/week, up to 6 days/week. If the Client requests a different schedule (for example 40 hours/week over 5 working days), the agreed net compensation will remain unchanged. Any voluntary absences or absences for personal needs will not be remunerated.",
+  orario48:
+    "Up to 48 hours/week, up to 6 days/week. If the Client requests a different schedule (for example 40 hours/week over 5 working days), the agreed net compensation will remain unchanged. Any voluntary absences or absences for personal needs will not be remunerated.",
+  orario40:
+    "Up to 40 hours/week, up to 5 days/week. Any voluntary absences or absences for personal needs will not be remunerated.",
+  straordinariEuro:
+    "Euro {importo} for each hour worked in excess of the standard hours, only if expressly requested and approved by the Client.",
+  straordinariFormula10:
+    "An amount equal to 1/10 of the daily rate for each hour worked in excess of the standard site schedule, only if expressly requested and approved by the Client.",
+  straordinariNA: "N/A",
+  alloggioCliente: "Accommodation provided by the Client.",
+  alloggioCandidato: "Accommodation at the candidate's expense.",
+  alloggioContributo:
+    "Contribution up to a maximum of Euro {importo}, subject to submission of supporting documents.",
+  trasportiCliente: "Local transportation provided by the Client.",
+  trasportiCandidato: "Local transportation at the candidate's expense.",
+  trasportiRenting: "City-car rental provided at our expense.",
+  pocketMoneyCalendar: "Euro {importo} /calendar day",
+  mobStandard:
+    "Mob/Demob travel expenses will be reimbursed upon submission of supporting documents, such as invoices, receipts or equivalent documentation.",
+  mobVoli: "Flight ticket, if used, economy class, at our expense.",
+  mobNA: "N/A",
+  viaggio100:
+    "During the travel days necessary to reach the site and return to the place of residence, an amount equal to 100% of the agreed daily amount for on-site activities will be recognized.",
+  viaggio50:
+    "During the travel days necessary to reach the site and return to the place of residence, an amount equal to 50% of the agreed daily amount for on-site activities will be recognized.",
+  viaggioNA: "N/A",
+  contratto: "Fixed-term employment - Level {livello} - C.C.N.L. COMMERCIO",
+  remunerazione:
+    "The remuneration will be Euro {rate26} net per day worked ({rate26} x 26 = Euro {netto} net per month) and will consist of:\n- Base salary corresponding to the assigned level\n- Accrued 13th-month pay\n- Accrued 14th-month pay\n- Holidays and leave\n- TFR\n- Travel allowance\n- Miscellaneous reimbursement items",
+  nota:
+    "The payment procedure takes into account the time required to process the documentation necessary for payroll preparation. Therefore, the monthly salary will be paid no later than the 20th of the month following the worked month, upon receipt at headquarters of the signed and approved timesheet by the 3rd of that month.",
+  periodoProva: "In accordance with the C.C.N.L. COMMERCIO.",
+  periodoPreavviso: "In accordance with the C.C.N.L. COMMERCIO.",
+  assicurazione1: "In accordance with Italian laws and regulations (INAIL).",
+  assicurazione2: "Allianz",
+  inizioPrefix: "Indicatively from {data}",
+  inizioCompat: "subject to the time required for administrative documentation",
+  finePrefix: "Indicatively until {data}",
+  durataSuffix:
+    "(extendable / subject to change based on actual project requirements)",
+  turnazioneTBD: "To Be Defined",
+  turnazioneNA: "N/A",
+  turnazioneDefinita:
+    "{schema}. During rotation, travel days will be recognized and travel expenses will be reimbursed upon submission of receipts for tickets, fuel, tolls or equivalent costs. Rotation rest days will not be remunerated."
+});
+
+const DRAFT_LABELS = Object.freeze({
+  it: {
+    position: "Posizione", location: "Località", project: "Progetto",
+    start: "Inizio Progetto", end: "Fine Progetto", duration: "Durata Stimata",
+    hours: "Orario di lavoro", rotation: "Turnazione", overtime: "Straordinari",
+    accommodation: "Alloggio", transport: "Trasporti locali", mob: "Mob e Demob",
+    travel: "Giorni di viaggio", contract: "Tipo di contratto",
+    remuneration: "Remunerazione intervento", note: "Nota",
+    probation: "Periodo di prova", notice: "Periodo di preavviso",
+    insurance1: "Assicurazione 1", insurance2: "Assicurazione 2"
+  },
+  en: {
+    position: "Role", location: "Location", project: "Project",
+    start: "Project Start Date", end: "Project End Date", duration: "Estimated Project Duration",
+    hours: "Working hours", rotation: "Rotation", overtime: "Overtime",
+    accommodation: "Accommodation", transport: "Local transportation", mob: "Mob and Demob Travel",
+    travel: "Travel days", contract: "Contract Type",
+    remuneration: "Remuneration", note: "Note", probation: "Probation Period",
+    notice: "Notice period", insurance1: "Insurance 1", insurance2: "Insurance 2"
+  }
+});
+
+function getDraftLanguage(draft) {
+  return draft && draft.language === "en" ? "en" : "it";
+}
+
+function getDraftTemplates(draft) {
+  return getDraftLanguage(draft) === "en" ? DRAFT_TEMPLATES_EN : DRAFT_TEMPLATES;
+}
+
 /**
  * Sostituisce placeholder {nome} in un template aziendale.
  * @param {string} template
@@ -2364,7 +2460,7 @@ function formatDraftDateIt(iso) {
  * @param {string} a
  * @returns {string}
  */
-function formatDraftDuration(da, a) {
+function formatDraftDuration(da, a, language) {
   const t1 = Date.parse(da);
   const t2 = Date.parse(a);
   if (!Number.isFinite(t1) || !Number.isFinite(t2) || t2 < t1) {
@@ -2373,9 +2469,9 @@ function formatDraftDuration(da, a) {
   const days = Math.round((t2 - t1) / 86400000) + 1;
   const months = Math.max(1, Math.round(days / 30.4375));
   if (months === 1) {
-    return "1 mese";
+    return language === "en" ? "1 month" : "1 mese";
   }
-  return months + " mesi";
+  return months + (language === "en" ? " months" : " mesi");
 }
 
 /**
@@ -2423,6 +2519,7 @@ function getPocketMoneyCalendarDay(pocketMensile) {
  * @returns {string|null}
  */
 function buildDraftPocketMoneyText() {
+  const templates = getDraftTemplates(AppState.draft || {});
   const calc = AppState.calculation;
   const pocket =
     calc && calc.pocketMoney != null
@@ -2432,7 +2529,7 @@ function buildDraftPocketMoneyText() {
   if (day == null) {
     return null;
   }
-  return applyDraftTemplate(DRAFT_TEMPLATES.pocketMoneyCalendar, {
+  return applyDraftTemplate(templates.pocketMoneyCalendar, {
     importo: formatDraftItNumber(day)
   });
 }
@@ -2443,6 +2540,7 @@ function buildDraftPocketMoneyText() {
  * @returns {string}
  */
 function buildDraftRemunerationText() {
+  const templates = getDraftTemplates(AppState.draft || {});
   const calc = AppState.calculation;
   if (!calc) {
     return "—";
@@ -2456,7 +2554,7 @@ function buildDraftRemunerationText() {
   if (rateCand == null) {
     return "—";
   }
-  return applyDraftTemplate(DRAFT_TEMPLATES.remunerazione, {
+  return applyDraftTemplate(templates.remunerazione, {
     rate26: formatDraftItNumber(rateCand),
     netto: formatDraftItNumber(nettoMensile)
   });
@@ -2468,14 +2566,15 @@ function buildDraftRemunerationText() {
  * @returns {string}
  */
 function buildDraftOvertimeText(draft) {
+  const templates = getDraftTemplates(draft || {});
   const otDraft = (draft && draft.overtime) || {};
   const mode = otDraft.mode || "auto";
 
   if (mode === "na") {
-    return DRAFT_TEMPLATES.straordinariNA;
+    return templates.straordinariNA;
   }
   if (mode === "formula10") {
-    return DRAFT_TEMPLATES.straordinariFormula10;
+    return templates.straordinariFormula10;
   }
   if (mode === "manual") {
     const manual = (otDraft.manualValue || "").trim();
@@ -2488,7 +2587,7 @@ function buildDraftOvertimeText(draft) {
     }
     const rawImporto = manual.replace(/^Euro\s+/i, "").trim();
     const formatted = formatDraftItNumber(rawImporto);
-    return applyDraftTemplate(DRAFT_TEMPLATES.straordinariEuro, {
+    return applyDraftTemplate(templates.straordinariEuro, {
       importo: formatted || rawImporto
     });
   }
@@ -2496,7 +2595,7 @@ function buildDraftOvertimeText(draft) {
   // automatico da OT tecnico
   const ot = AppState.overtime;
   if (ot && ot.tecnico && Number.isFinite(Number(ot.tecnico.costoOrario))) {
-    return applyDraftTemplate(DRAFT_TEMPLATES.straordinariEuro, {
+    return applyDraftTemplate(templates.straordinariEuro, {
       importo: formatDraftItNumber(ot.tecnico.costoOrario)
     });
   }
@@ -2509,6 +2608,8 @@ function buildDraftOvertimeText(draft) {
  */
 function buildDraftWordRows() {
   const draft = AppState.draft || {};
+  const templates = getDraftTemplates(draft);
+  const labels = DRAFT_LABELS[getDraftLanguage(draft)];
   const project = draft.project || {};
   const schedule = draft.workSchedule || {};
   const rotation = draft.rotation || {};
@@ -2525,24 +2626,28 @@ function buildDraftWordRows() {
   if (project.periodoMode === "text") {
     const txt = (project.periodoTesto || "").trim();
     durata = txt
-      ? txt + "\n" + DRAFT_TEMPLATES.durataSuffix
+      ? txt + "\n" + templates.durataSuffix
       : "—";
   } else {
     const da = formatDraftDateIt(project.periodoDa);
     const a = formatDraftDateIt(project.periodoA);
     if (da) {
       inizio =
-        applyDraftTemplate(DRAFT_TEMPLATES.inizioPrefix, { data: da }) +
+        applyDraftTemplate(templates.inizioPrefix, { data: da }) +
         "\n" +
-        DRAFT_TEMPLATES.inizioCompat;
+        templates.inizioCompat;
     }
     if (a) {
-      fine = applyDraftTemplate(DRAFT_TEMPLATES.finePrefix, { data: a });
+      fine = applyDraftTemplate(templates.finePrefix, { data: a });
     }
     if (project.periodoDa && project.periodoA) {
-      const d = formatDraftDuration(project.periodoDa, project.periodoA);
+      const d = formatDraftDuration(
+        project.periodoDa,
+        project.periodoA,
+        getDraftLanguage(draft)
+      );
       durata = d
-        ? d + "\n" + DRAFT_TEMPLATES.durataSuffix
+        ? d + "\n" + templates.durataSuffix
         : "—";
     }
   }
@@ -2552,23 +2657,23 @@ function buildDraftWordRows() {
   if (schedule.mode === "custom") {
     orario = (schedule.custom || "").trim() || "—";
   } else if (schedule.mode === "60h6") {
-    orario = DRAFT_TEMPLATES.orario60;
+    orario = templates.orario60;
   } else if (schedule.mode === "48h6") {
-    orario = DRAFT_TEMPLATES.orario48;
+    orario = templates.orario48;
   } else if (schedule.mode === "40h5") {
-    orario = DRAFT_TEMPLATES.orario40;
+    orario = templates.orario40;
   }
 
   // Turnazione
   let turnazione = "—";
   if (rotation.mode === "tbd") {
-    turnazione = DRAFT_TEMPLATES.turnazioneTBD;
+    turnazione = templates.turnazioneTBD;
   } else if (rotation.mode === "na") {
-    turnazione = DRAFT_TEMPLATES.turnazioneNA;
+    turnazione = templates.turnazioneNA;
   } else {
     const schema = (rotation.value || "").trim();
     turnazione = schema
-      ? applyDraftTemplate(DRAFT_TEMPLATES.turnazioneDefinita, {
+      ? applyDraftTemplate(templates.turnazioneDefinita, {
           schema: schema
         })
       : "—";
@@ -2577,13 +2682,13 @@ function buildDraftWordRows() {
   // Alloggio
   let alloggio = "—";
   if (accommodation.mode === "cliente") {
-    alloggio = DRAFT_TEMPLATES.alloggioCliente;
+    alloggio = templates.alloggioCliente;
   } else if (accommodation.mode === "candidato") {
-    alloggio = DRAFT_TEMPLATES.alloggioCandidato;
+    alloggio = templates.alloggioCandidato;
   } else if (accommodation.mode === "contributo") {
     const detRaw = (accommodation.detail || "").trim();
     const formatted = formatDraftItNumber(detRaw);
-    alloggio = applyDraftTemplate(DRAFT_TEMPLATES.alloggioContributo, {
+    alloggio = applyDraftTemplate(templates.alloggioContributo, {
       importo: formatted || detRaw || "…"
     });
   } else if (accommodation.mode === "personalizzato") {
@@ -2593,11 +2698,11 @@ function buildDraftWordRows() {
   // Trasporti
   let trasporti = "—";
   if (transport.mode === "cliente") {
-    trasporti = DRAFT_TEMPLATES.trasportiCliente;
+    trasporti = templates.trasportiCliente;
   } else if (transport.mode === "candidato") {
-    trasporti = DRAFT_TEMPLATES.trasportiCandidato;
+    trasporti = templates.trasportiCandidato;
   } else if (transport.mode === "renting") {
-    trasporti = DRAFT_TEMPLATES.trasportiRenting;
+    trasporti = templates.trasportiRenting;
   } else if (transport.mode === "personalizzato") {
     trasporti = (transport.detail || "").trim() || "—";
   }
@@ -2605,44 +2710,44 @@ function buildDraftWordRows() {
   // Mob / Demob
   let mobText = "—";
   if (mob.mode === "na") {
-    mobText = DRAFT_TEMPLATES.mobNA;
+    mobText = templates.mobNA;
   } else {
-    mobText = DRAFT_TEMPLATES.mobStandard;
+    mobText = templates.mobStandard;
   }
   if (mob.voliNostroCarico) {
     mobText =
-      (mobText === DRAFT_TEMPLATES.mobNA ? "" : mobText + "\n") +
-      DRAFT_TEMPLATES.mobVoli;
+      (mobText === templates.mobNA ? "" : mobText + "\n") +
+      templates.mobVoli;
   }
 
   // Giorni viaggio
   let giorniViaggio = "—";
   if (travel.mode === "100") {
-    giorniViaggio = DRAFT_TEMPLATES.viaggio100;
+    giorniViaggio = templates.viaggio100;
   } else if (travel.mode === "50") {
-    giorniViaggio = DRAFT_TEMPLATES.viaggio50;
+    giorniViaggio = templates.viaggio50;
   } else if (travel.mode === "na") {
-    giorniViaggio = DRAFT_TEMPLATES.viaggioNA;
+    giorniViaggio = templates.viaggioNA;
   }
 
   // Contratto
   const livello = contract.livello === "2" ? "2" : "1";
-  const tipoContratto = applyDraftTemplate(DRAFT_TEMPLATES.contratto, {
+  const tipoContratto = applyDraftTemplate(templates.contratto, {
     livello: livello
   });
 
   const rows = [
-    { label: "Posizione", value: (project.posizione || "").trim() || "—" },
-    { label: "Località", value: (project.localita || "").trim() || "—" },
-    { label: "Progetto", value: (project.progetto || "").trim() || "—" },
-    { label: "Inizio Progetto", value: inizio },
-    { label: "Fine Progetto", value: fine },
-    { label: "Durata Stimata", value: durata },
-    { label: "Orario di lavoro", value: orario },
-    { label: "Turnazione", value: turnazione },
-    { label: "Straordinari", value: buildDraftOvertimeText(draft) },
-    { label: "Alloggio", value: alloggio },
-    { label: "Trasporti locali", value: trasporti }
+    { label: labels.position, value: (project.posizione || "").trim() || "—" },
+    { label: labels.location, value: (project.localita || "").trim() || "—" },
+    { label: labels.project, value: (project.progetto || "").trim() || "—" },
+    { label: labels.start, value: inizio },
+    { label: labels.end, value: fine },
+    { label: labels.duration, value: durata },
+    { label: labels.hours, value: orario },
+    { label: labels.rotation, value: turnazione },
+    { label: labels.overtime, value: buildDraftOvertimeText(draft) },
+    { label: labels.accommodation, value: alloggio },
+    { label: labels.transport, value: trasporti }
   ];
 
   const pocketText = buildDraftPocketMoneyText();
@@ -2651,18 +2756,18 @@ function buildDraftWordRows() {
   }
 
   rows.push(
-    { label: "Mob e Demob", value: mobText },
-    { label: "Giorni di viaggio", value: giorniViaggio },
-    { label: "Tipo di contratto", value: tipoContratto },
+    { label: labels.mob, value: mobText },
+    { label: labels.travel, value: giorniViaggio },
+    { label: labels.contract, value: tipoContratto },
     {
-      label: "Remunerazione intervento",
+      label: labels.remuneration,
       value: buildDraftRemunerationText()
     },
-    { label: "Nota", value: DRAFT_TEMPLATES.nota },
-    { label: "Periodo di prova", value: DRAFT_TEMPLATES.periodoProva },
-    { label: "Periodo di preavviso", value: DRAFT_TEMPLATES.periodoPreavviso },
-    { label: "Assicurazione 1", value: DRAFT_TEMPLATES.assicurazione1 },
-    { label: "Assicurazione 2", value: DRAFT_TEMPLATES.assicurazione2 }
+    { label: labels.note, value: templates.nota },
+    { label: labels.probation, value: templates.periodoProva },
+    { label: labels.notice, value: templates.periodoPreavviso },
+    { label: labels.insurance1, value: templates.assicurazione1 },
+    { label: labels.insurance2, value: templates.assicurazione2 }
   );
 
   return rows;
@@ -2689,6 +2794,8 @@ function buildDraftWordSection(docxLib) {
 
   const FONT = DRAFT_WORD_FONT;
   const SIZE = DRAFT_WORD_SIZE;
+  const language = getDraftLanguage(AppState.draft || {});
+  const isEnglish = language === "en";
   // Larghezza utile A4 con margini 720 DXA: 11906 - 1440 = 10466
   const PAGE_CONTENT = 10466;
   const COL_LABEL = Math.round(PAGE_CONTENT * 0.3);
@@ -2766,7 +2873,7 @@ function buildDraftWordSection(docxLib) {
     spacing: { after: 400 },
     children: [
       new TextRun({
-        text: "DRAFT DI CONTRATTO",
+        text: isEnglish ? "CONTRACT DRAFT" : "DRAFT DI CONTRATTO",
         bold: true,
         size: DRAFT_WORD_TITLE_SIZE,
         font: FONT
@@ -2790,7 +2897,7 @@ function buildDraftWordSection(docxLib) {
     spacing: { before: 400, after: 200 },
     children: [
       new TextRun({
-        text: "Data generazione Draft:",
+        text: isEnglish ? "Draft Date:" : "Data generazione Draft:",
         bold: true,
         size: SIZE,
         font: FONT
@@ -2826,7 +2933,7 @@ function buildDraftWordSection(docxLib) {
     spacing: { after: 200 },
     children: [
       new TextRun({
-        text: "Firma del candidato",
+        text: isEnglish ? "Candidate's signature" : "Firma del candidato",
         size: SIZE,
         font: FONT
       })
@@ -2884,11 +2991,15 @@ async function handleEsportaDraftWord() {
 
   const { Document, Packer } = window.docx;
   const section = buildDraftWordSection(window.docx);
+  const draftLanguage = getDraftLanguage(AppState.draft || {});
+  const isEnglish = draftLanguage === "en";
 
   const doc = new Document({
     creator: "Calcolo Costo Personale",
-    title: "DRAFT DI CONTRATTO",
-    description: "Draft Tecnico — bozza condizioni",
+    title: isEnglish ? "CONTRACT DRAFT" : "DRAFT DI CONTRATTO",
+    description: isEnglish
+      ? "Technical contract draft"
+      : "Draft Tecnico — bozza condizioni",
     sections: [
       {
         properties: {
@@ -2904,7 +3015,8 @@ async function handleEsportaDraftWord() {
   try {
     const blob = await Packer.toBlob(doc);
     const stamp = new Date().toISOString().slice(0, 10);
-    const fileName = "Draft_Tecnico_" + stamp + ".docx";
+    const fileName =
+      (isEnglish ? "Contract_Draft_" : "Draft_Tecnico_") + stamp + ".docx";
     downloadBlob(blob, fileName);
   } catch (err) {
     console.error(err);

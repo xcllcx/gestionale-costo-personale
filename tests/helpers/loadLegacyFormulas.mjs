@@ -15,7 +15,8 @@ export function loadLegacyFormulas() {
   // Evita bootstrap DOM / init
   const code = raw
     .replace(/document\.addEventListener\("DOMContentLoaded"[\s\S]*$/m, "")
-    .replace(/if \(document\.readyState === "loading"\)[\s\S]*$/m, "");
+    .replace(/if \(document\.readyState === "loading"\)[\s\S]*$/m, "") +
+    "\nwindow.__draftExports = { DRAFT_TEMPLATES, DRAFT_TEMPLATES_EN, DRAFT_LABELS, getDraftTemplates };";
 
   const sandbox = {
     console: {
@@ -90,7 +91,10 @@ export function loadLegacyFormulas() {
     formatDraftEuroAmount: sandbox.formatDraftEuroAmount,
     parseDraftMoneyInput: sandbox.parseDraftMoneyInput,
     applyDraftTemplate: sandbox.applyDraftTemplate,
-    DRAFT_TEMPLATES: sandbox.DRAFT_TEMPLATES,
+    DRAFT_TEMPLATES: sandbox.__draftExports.DRAFT_TEMPLATES,
+    DRAFT_TEMPLATES_EN: sandbox.__draftExports.DRAFT_TEMPLATES_EN,
+    DRAFT_LABELS: sandbox.__draftExports.DRAFT_LABELS,
+    getDraftTemplates: sandbox.__draftExports.getDraftTemplates,
     buildDraftWordRows: sandbox.buildDraftWordRows,
     AppState: sandbox.AppState
   };

@@ -1164,6 +1164,89 @@ fieldset.field-group legend {
   gap: 0.35rem 0.75rem;
 }
 
+/* REV04 UX: sezioni Offerta Cliente comprimibili */
+.co-collapsible-section > .card-title {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+}
+
+.co-collapsible-section {
+  scroll-margin-top: 1rem;
+  transition: border-color 160ms ease, box-shadow 160ms ease;
+}
+
+.co-collapsible-section:hover {
+  border-color: #c7d6e5;
+}
+
+.co-collapse-toggle {
+  appearance: none;
+  border: 1px solid #b9c7d8;
+  border-radius: 999px;
+  background: #f4f7fb;
+  color: #17395f;
+  padding: 0.35rem 0.75rem;
+  font: inherit;
+  font-size: 0.78rem;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.co-collapse-toggle:hover,
+.co-collapse-toggle:focus-visible {
+  background: #e8f0f8;
+  outline: 2px solid transparent;
+}
+
+.co-collapsible-section.is-collapsed > :not(.card-title) {
+  display: none !important;
+}
+
+.co-validation-summary {
+  margin: 0 0 1rem;
+  padding: 0.85rem 1rem;
+  border: 1px solid #e5bd75;
+  border-radius: 10px;
+  background: #fff8e8;
+  color: #684b16;
+}
+
+.co-validation-summary.is-ready {
+  border-color: #8bc8a1;
+  background: #edf9f1;
+  color: #245c38;
+}
+
+.co-validation-summary ul {
+  margin: 0.45rem 0 0 1.2rem;
+  padding: 0;
+  columns: 2;
+  column-gap: 2rem;
+}
+
+.co-validation-summary li {
+  break-inside: avoid;
+  margin-bottom: 0.2rem;
+}
+
+#formClientOffer > section[aria-labelledby="co-title-sum"] {
+  position: static;
+  border-top: 4px solid #1f5f91;
+  box-shadow: 0 8px 24px rgba(15, 47, 78, 0.1);
+}
+
+.draft-language-card {
+  border-left: 4px solid #1f5f91;
+}
+
+@media (max-width: 760px) {
+  .co-validation-summary ul {
+    columns: 1;
+  }
+}
+
 .footer-credit {
   font-size: 0.72rem;
   color: #8a94a6;

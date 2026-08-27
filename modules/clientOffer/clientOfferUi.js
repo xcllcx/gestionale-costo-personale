@@ -83,15 +83,15 @@ export function initClientOfferUi(appState) {
   const form = $("formClientOffer");
   if (form) form.dataset.bound = "";
   bindEvents();
+  initCollapsibleOfferSections();
   syncFormFromState();
   updateClientOfferConditionalFields();
   refreshSummary();
   refreshSequenceSettingsUi();
-  setStatus(
-    templateBuffer
-      ? "Modulo Offerta Cliente pronto. Template: " + templateLabel()
-      : "Caricare il template aziendale (B) per generare l’offerta Word."
-  );
+  setStatus(templateBuffer ? "Template attivo: " + templateLabel() : "");
+  if (!templateBuffer) {
+    loadBundledTemplateIfAvailable();
+  }
 }
 
 /**
@@ -104,7 +104,7 @@ export function refreshClientOfferView() {
     const r = importFromModules(appStateRef, s, { force: false });
     autoImportDone = true;
     refreshProposalNamingFields();
-    setStatus(r.message);
+    if (r.changed) setStatus(r.message);
   }
   syncFormFromState();
   updateClientOfferConditionalFields();
@@ -123,6 +123,53 @@ function $(id) {
 function setStatus(msg) {
   const el = $("coStatus");
   if (el) el.textContent = msg || "";
+}
+
+async function loadBundledTemplateIfAvailable() {
+  try {
+    const response = await fetch(
+      "templates/client_offer/OFFERTA_CLIENTE_TEMPLATE_B.docx",
+      { cache: "no-store" }
+    );
+    if (!response.ok) throw new Error("HTTP " + response.status);
+    const buffer = await response.arrayBuffer();
+    if (!buffer || !buffer.byteLength) throw new Error("template vuoto");
+    persistTemplate("OFFERTA_CLIENTE_TEMPLATE_B.docx", buffer.byteLength, buffer);
+    state().template.source = "bundled";
+    refreshTemplateMeta();
+    persist();
+    refreshSummary();
+    setStatus(
+      "Template aziendale predefinito caricato. Puoi sostituirlo con un altro DOCX."
+    );
+  } catch (err) {
+    setStatus(
+      "Template predefinito non disponibile: caricare manualmente il DOCX aziendale."
+    );
+  }
+}
+
+function initCollapsibleOfferSections() {
+  const form = $("formClientOffer");
+  if (!form || form.dataset.collapsibleBound === "1") return;
+  form.dataset.collapsibleBound = "1";
+  form.querySelectorAll(":scope > section.card").forEach(function (section) {
+    if (section.querySelector("#co-title-sum")) return;
+    const heading = section.querySelector("h2.card-title");
+    if (!heading) return;
+    section.classList.add("co-collapsible-section");
+    const button = document.createElement("button");
+    button.type = "button";
+    button.className = "co-collapse-toggle";
+    button.textContent = "Riduci";
+    button.setAttribute("aria-expanded", "true");
+    button.addEventListener("click", function () {
+      const collapsed = section.classList.toggle("is-collapsed");
+      button.textContent = collapsed ? "Espandi" : "Riduci";
+      button.setAttribute("aria-expanded", collapsed ? "false" : "true");
+    });
+    heading.appendChild(button);
+  });
 }
 
 function templateLabel() {
@@ -791,6 +838,32 @@ function refreshSummary() {
     const el = $(id);
     if (el) el.textContent = map[id];
   });
+  refreshValidationSummary();
+}
+
+function refreshValidationSummary() {
+  const el = $("coValidationSummary");
+  if (!el) return;
+  const errors = validateOfferForWord(state()).errors.slice();
+  if (!templateBuffer) errors.unshift("Template Word non disponibile");
+  el.classList.toggle("is-ready", errors.length === 0);
+  if (!errors.length) {
+    el.innerHTML = "<strong>Offerta pronta.</strong> Tutti i dati necessari sono disponibili.";
+    return;
+  }
+  el.innerHTML =
+    "<strong>Mancano " + errors.length + " informazioni:</strong><ul>" +
+    errors.map(function (item) { return "<li>" + escapeHtml(item) + "</li>"; }).join("") +
+    "</ul>";
+}
+
+function escapeHtml(value) {
+  return String(value == null ? "" : value)
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/\"/g, "&quot;")
+    .replace(/'/g, "&#039;");
 }
 
 function refreshTemplateMeta() {
@@ -800,7 +873,7 @@ function refreshTemplateMeta() {
   if (status) {
     status.textContent = t.hasBuffer
       ? "Template attivo: " + t.name
-      : "Nessun template caricato.";
+      : "Caricamento del template aziendale predefinito…";
   }
   if (meta) {
     meta.classList.toggle("hidden", !t.hasBuffer);

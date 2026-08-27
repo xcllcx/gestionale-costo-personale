@@ -537,6 +537,22 @@
 
       <form id="formDraft" class="draft-stack" autocomplete="off" novalidate>
 
+        <section class="card draft-language-card" aria-labelledby="titolo-draft-lingua">
+          <h2 id="titolo-draft-lingua" class="card-title">Lingua documento</h2>
+          <p class="card-subtitle">La lingua modifica il contenuto del Word, non i dati o le formule economiche.</p>
+          <div class="radio-grid radio-grid-2" role="radiogroup" aria-label="Lingua Draft Tecnico">
+            <label class="radio-chip">
+              <input type="radio" name="draftLanguage" value="it" checked />
+              <span>Italiano</span>
+            </label>
+            <label class="radio-chip">
+              <input type="radio" name="draftLanguage" value="en" />
+              <span>English</span>
+            </label>
+          </div>
+          <p class="field-hint" id="draftLanguageHint">Il documento sarà generato in italiano.</p>
+        </section>
+
         <!-- DATI GENERALI -->
         <section class="card" aria-labelledby="titolo-draft-generali">
           <h2 id="titolo-draft-generali" class="card-title">Dati generali</h2>
@@ -1052,14 +1068,14 @@
 
         <section class="card" aria-labelledby="co-title-tpl">
           <h2 id="co-title-tpl" class="card-title">Template Word aziendale</h2>
-          <p class="card-subtitle">Obbligatorio. Caricare il template aziendale (versione B con placeholder). Non esiste più un template automatico interno.</p>
-          <p class="co-status" id="coTemplateStatus">Nessun template caricato.</p>
+          <p class="card-subtitle">Il template aziendale predefinito viene caricato automaticamente. Puoi sostituirlo con un altro DOCX con placeholder.</p>
+          <p class="co-status" id="coTemplateStatus">Caricamento del template aziendale predefinito…</p>
           <div class="imported-grid hidden" id="coTemplateMeta">
             <div class="imported-item"><span class="imported-label">Nome</span><span class="imported-value" id="coTemplateName">—</span></div>
             <div class="imported-item"><span class="imported-label">Dimensione</span><span class="imported-value" id="coTemplateSize">—</span></div>
           </div>
           <div class="actions cv-card-actions">
-            <button type="button" class="btn btn-primary" id="btnCoCaricaTemplate">Carica template</button>
+            <button type="button" class="btn btn-primary" id="btnCoCaricaTemplate">Scegli un altro template</button>
             <button type="button" class="btn btn-secondary hidden" id="btnCoSostituisciTemplate">Sostituisci</button>
             <button type="button" class="btn btn-secondary hidden" id="btnCoRimuoviTemplate">Rimuovi</button>
           </div>
@@ -1315,6 +1331,7 @@
 
         <section class="card" aria-labelledby="co-title-sum">
           <h2 id="co-title-sum" class="card-title">Riepilogo</h2>
+          <div class="co-validation-summary" id="coValidationSummary" role="status" aria-live="polite"></div>
           <div class="imported-grid">
             <div class="imported-item"><span class="imported-label">Subject</span><span class="imported-value" id="coSumSubject">—</span></div>
             <div class="imported-item"><span class="imported-label">Location</span><span class="imported-value" id="coSumLocation">—</span></div>
@@ -1341,7 +1358,7 @@
 
   <footer class="app-footer">
     <p>
-      Managing Platform — applicazione locale, senza server e senza database.
+      Managing Platform — versione web. I dati operativi restano sul dispositivo e non sono salvati in un database centrale.
       <span class="footer-credit">Crafted with Cursor by Lorenzo Coluccelli</span>
     </p>
   </footer>

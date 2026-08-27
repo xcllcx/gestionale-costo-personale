@@ -64,3 +64,32 @@ test("FIX2. Draft non altera proposal/date/rotation/ore", function () {
   const f = loadLegacyFormulas();
   assert.equal(f.formatDraftItNumber("90/15"), "");
 });
+
+test("REV04 UX. Draft Tecnico supporta Italiano ed English", function () {
+  const f = loadLegacyFormulas();
+  assert.match(f.DRAFT_TEMPLATES_EN.orario60, /Up to 60 hours\/week/);
+  assert.match(f.DRAFT_TEMPLATES_EN.remunerazione, /Accrued 13th-month pay/);
+  assert.equal(f.DRAFT_LABELS.en.position, "Role");
+  assert.equal(f.DRAFT_LABELS.en.remuneration, "Remuneration");
+  assert.equal(f.getDraftTemplates({ language: "en" }).assicurazione2, "Allianz");
+  assert.equal(f.getDraftTemplates({ language: "it" }).periodoProva, "In accordo con il CCNL del Commercio");
+});
+
+test("REV04 UX. selettore lingua, template automatico e validazione visibile", function () {
+  const html = fs.readFileSync(path.join(root, "index.html"), "utf8");
+  const ui = fs.readFileSync(
+    path.join(root, "modules/clientOffer/clientOfferUi.js"),
+    "utf8"
+  );
+  const css = fs.readFileSync(path.join(root, "style.css"), "utf8");
+  assert.match(html, /name="draftLanguage" value="it"/);
+  assert.match(html, /name="draftLanguage" value="en"/);
+  assert.match(html, /id="coValidationSummary"/);
+  assert.match(ui, /loadBundledTemplateIfAvailable/);
+  assert.match(ui, /OFFERTA_CLIENTE_TEMPLATE_B\.docx/);
+  assert.match(ui, /initCollapsibleOfferSections/);
+  assert.match(
+    css,
+    /#formClientOffer > section\[aria-labelledby="co-title-sum"\]\s*{[^}]*position:\s*static/s
+  );
+});
