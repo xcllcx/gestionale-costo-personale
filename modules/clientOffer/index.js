@@ -10,10 +10,10 @@ import {
 import {
   initClientOfferUi,
   refreshClientOfferView
-} from "./clientOfferUi.js?v=rev04-margin-fix-20260828";
+} from "./clientOfferUi.js?v=rev04-ui-polish-20260828";
 
 export { refreshClientOfferView, createDefaultClientOfferState };
-export * from "./transform.js?v=rev04-margin-fix-20260828";
+export * from "./transform.js?v=rev04-ui-polish-20260828";
 export * from "./import.js";
 export * from "./state.js";
 export {

@@ -31,7 +31,7 @@ import {
   validateOfferForWord,
   applyResolvedOfferRate,
   computeOfferMarginStatus
-} from "./transform.js?v=rev04-margin-fix-20260828";
+} from "./transform.js?v=rev04-ui-polish-20260828";
 import {
   generateClientOfferDocx,
   downloadOfferBlob,
@@ -170,6 +170,11 @@ function initCollapsibleOfferSections() {
       button.setAttribute("aria-expanded", collapsed ? "false" : "true");
     });
     heading.appendChild(button);
+    if (section.id === "coTemplateSection") {
+      section.classList.add("is-collapsed");
+      button.textContent = "Espandi";
+      button.setAttribute("aria-expanded", "false");
+    }
   });
 }
 

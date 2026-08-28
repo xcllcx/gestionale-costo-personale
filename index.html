@@ -6,7 +6,7 @@
   <meta name="description" content="Gestionale professionale per il calcolo del costo del personale e overtime" />
   <title>Managing Platform</title>
   <!-- Foglio di stile principale -->
-  <link rel="stylesheet" href="style.css" />
+  <link rel="stylesheet" href="style.css?v=rev04-ui-polish-20260828" />
 </head>
 <body>
   <!-- ============================================================
@@ -256,11 +256,12 @@
       <section class="card" id="otMissingCard" hidden>
         <h2 class="card-title">Nessun calcolo costo importato</h2>
         <p class="card-subtitle">
-          Puoi comunque calcolare l'overtime in modalità <strong>Calcolo manuale</strong>,
-          oppure eseguire prima un calcolo in <strong>Calcolo costo personale</strong> per importare i dati.
+          Puoi inserire un <strong>rate manuale</strong>, oppure eseguire prima un calcolo in
+          <strong>Calcolo costo personale</strong> per importare automaticamente i dati.
         </p>
         <div class="actions">
           <button type="button" class="btn btn-primary" id="btnVaiACosto">Vai al calcolo costo</button>
+          <button type="button" class="btn btn-secondary" id="btnApriOvertimeManuale">Usa un rate manuale</button>
         </div>
       </section>
 
@@ -302,13 +303,21 @@
 
         <form id="formOvertime" class="ot-stack" autocomplete="off" novalidate>
           <!-- CALCOLO MANUALE (standalone) -->
-          <section class="card card-compact" aria-labelledby="titolo-ot-manuale">
-            <h2 id="titolo-ot-manuale" class="card-title">Calcolo manuale</h2>
-            <p class="card-subtitle">
-              Opzionale. Se valorizzi il rate giornaliero, l'overtime usa solo questi dati
-              (ignora il calcolo costo). Se lasci vuoto, usa i dati importati.
-            </p>
-            <div class="layout-grid">
+          <details class="card card-compact ot-manual-details" id="otManualDetails">
+            <summary>
+              <span>
+                <strong id="titolo-ot-manuale">Calcolo senza costo personale</strong>
+                <small>Apri solo se vuoi calcolare l’overtime partendo da un rate inserito manualmente.</small>
+              </span>
+              <span class="details-action" aria-hidden="true">Apri</span>
+            </summary>
+            <div class="ot-manual-content" aria-labelledby="titolo-ot-manuale">
+              <p class="card-subtitle">
+                Il rate manuale sostituisce temporaneamente i dati del Calcolo costo personale.
+                Il metodo scelto viene applicato inizialmente sia al tecnico sia al cliente;
+                potrai differenziarli nelle sezioni successive.
+              </p>
+              <div class="layout-grid">
               <div class="field">
                 <label for="otRateManuale">Rate giornaliero</label>
                 <div class="input-currency">
@@ -338,8 +347,9 @@
                   </div>
                 </fieldset>
               </div>
+              </div>
             </div>
-          </section>
+          </details>
 
           <!-- Parametro condiviso: ore giornaliere -->
           <section class="card card-compact">
@@ -366,8 +376,8 @@
           <div class="layout-grid ot-config-grid">
             <!-- ========== OVERTIME TECNICO (indipendente) ========== -->
             <section class="card ot-panel" aria-labelledby="titolo-ot-tecnico">
-              <h2 id="titolo-ot-tecnico" class="card-title">Overtime tecnico</h2>
-              <p class="card-subtitle">Costo orario riconosciuto al tecnico (€/ora).</p>
+              <h2 id="titolo-ot-tecnico" class="card-title">1. Compenso overtime tecnico</h2>
+              <p class="card-subtitle">Definisci quanto viene riconosciuto al tecnico per ogni ora di overtime.</p>
 
               <fieldset class="field-group">
                 <legend>Come viene riconosciuto l'overtime al tecnico?</legend>
@@ -417,8 +427,8 @@
 
             <!-- ========== OVERTIME CLIENTE (indipendente) ========== -->
             <section class="card ot-panel" aria-labelledby="titolo-ot-cliente">
-              <h2 id="titolo-ot-cliente" class="card-title">Overtime cliente</h2>
-              <p class="card-subtitle">Prezzo orario venduto al cliente (€/ora).</p>
+              <h2 id="titolo-ot-cliente" class="card-title">2. Prezzo overtime cliente</h2>
+              <p class="card-subtitle">Definisci il prezzo venduto al cliente per ogni ora di overtime.</p>
 
               <fieldset class="field-group">
                 <legend>Come viene venduto l'overtime al cliente?</legend>
@@ -1066,11 +1076,11 @@
           <button type="button" class="btn btn-secondary" id="btnCoReset">Reset offerta</button>
         </div>
 
-        <section class="card" aria-labelledby="co-title-tpl">
+        <section class="card" id="coTemplateSection" aria-labelledby="co-title-tpl">
           <h2 id="co-title-tpl" class="card-title">Template Word aziendale</h2>
           <p class="card-subtitle">Il template aziendale predefinito viene caricato automaticamente. Puoi sostituirlo con un altro DOCX con placeholder.</p>
           <p class="co-status" id="coTemplateStatus">Caricamento del template aziendale predefinito…</p>
-          <div class="imported-grid hidden" id="coTemplateMeta">
+          <div class="imported-grid co-template-meta hidden" id="coTemplateMeta">
             <div class="imported-item"><span class="imported-label">Nome</span><span class="imported-value" id="coTemplateName">—</span></div>
             <div class="imported-item"><span class="imported-label">Dimensione</span><span class="imported-value" id="coTemplateSize">—</span></div>
           </div>
@@ -1370,6 +1380,6 @@
   <!-- Libreria docx (browser, senza Node.js) per export .docx -->
   <script src="lib/docx.min.js"></script>
   <!-- Logica applicativa legacy (REV02_STABLE) + registrazione moduli REV03 -->
-  <script src="script.js?v=rev04-margin-fix-20260828"></script>
+  <script src="script.js?v=rev04-ui-polish-20260828"></script>
 </body>
 </html>

@@ -135,8 +135,9 @@ test("MARGIN4. asset margin versionati per evitare moduli obsoleti in cache", fu
     path.join(root, "modules/clientOffer/clientOfferUi.js"),
     "utf8"
   );
-  const version = "rev04-margin-fix-20260828";
+  const version = "rev04-ui-polish-20260828";
   assert.match(html, new RegExp("script\\.js\\?v=" + version));
+  assert.match(html, new RegExp("style\\.css\\?v=" + version));
   assert.match(script, new RegExp("clientOffer/index\\.js\\?v=" + version));
   assert.match(entry, new RegExp("clientOfferUi\\.js\\?v=" + version));
   assert.match(ui, new RegExp("transform\\.js\\?v=" + version));

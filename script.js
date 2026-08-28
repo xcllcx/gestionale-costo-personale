@@ -2354,6 +2354,33 @@ function getDraftLanguage(draft) {
   return draft && draft.language === "en" ? "en" : "it";
 }
 
+/**
+ * Usa il metodo del rate manuale come impostazione iniziale per entrambi i lati.
+ * Tecnico e cliente restano modificabili separatamente dopo la sincronizzazione.
+ */
+function syncManualMethodToOvertimePanels() {
+  const method = readMetodoByName("otMetodoManuale") || "working";
+  ["otMetodoTecnico", "otMetodoCliente"].forEach(function (name) {
+    const target = document.querySelector(
+      'input[name="' + name + '"][value="' + method + '"]'
+    );
+    if (target) target.checked = true;
+  });
+  if (method === "calendar") {
+    const days = readNumber("otGiorniManuale") || OVERTIME_DEFAULTS.giorniCalendar;
+    setInputValue("otGiorniCalendarTecnico", days);
+    setInputValue("otGiorniCalendarCliente", days);
+  }
+  syncCalendarDaysVisibility();
+}
+
+function openManualOvertimePanel() {
+  const details = document.getElementById("otManualDetails");
+  if (details) details.open = true;
+  const input = document.getElementById("otRateManuale");
+  if (input) input.focus();
+}
+
 function getDraftTemplates(draft) {
   return getDraftLanguage(draft) === "en" ? DRAFT_TEMPLATES_EN : DRAFT_TEMPLATES;
 }
@@ -3537,13 +3564,33 @@ function initApp() {
   document.querySelectorAll('input[name="otMetodoManuale"]').forEach(function (radio) {
     radio.addEventListener("change", function () {
       syncManualOvertimeVisibility();
+      syncManualMethodToOvertimePanels();
       refreshOvertimeImportedPanel();
     });
   });
+  const otGiorniManuale = document.getElementById("otGiorniManuale");
+  if (otGiorniManuale) {
+    otGiorniManuale.addEventListener("input", function () {
+      if (readMetodoByName("otMetodoManuale") === "calendar") {
+        syncManualMethodToOvertimePanels();
+      }
+    });
+  }
   const otRateManuale = document.getElementById("otRateManuale");
   if (otRateManuale) {
     otRateManuale.addEventListener("input", refreshOvertimeImportedPanel);
     otRateManuale.addEventListener("change", refreshOvertimeImportedPanel);
+  }
+  const btnApriOvertimeManuale = document.getElementById("btnApriOvertimeManuale");
+  if (btnApriOvertimeManuale) {
+    btnApriOvertimeManuale.addEventListener("click", openManualOvertimePanel);
+  }
+  const otManualDetails = document.getElementById("otManualDetails");
+  if (otManualDetails) {
+    otManualDetails.addEventListener("toggle", function () {
+      const action = otManualDetails.querySelector(".details-action");
+      if (action) action.textContent = otManualDetails.open ? "Chiudi" : "Apri";
+    });
   }
 
   // Draft Tecnico (FASE A + B)
@@ -3597,7 +3644,7 @@ function registerRev03Modules() {
     });
 
   // Cache-bust: evita UI/state JS obsoleti in cache browser dopo refactor
-  import("./modules/clientOffer/index.js?v=rev04-margin-fix-20260828")
+  import("./modules/clientOffer/index.js?v=rev04-ui-polish-20260828")
     .then(function (mod) {
       if (mod && typeof mod.refreshClientOfferView === "function") {
         window.__refreshClientOffer = mod.refreshClientOfferView;
