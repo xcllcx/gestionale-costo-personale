@@ -32,6 +32,7 @@ import {
   formatEuroIt,
   computeDailyPocketMoney,
   computeOfferDailyRate,
+  computeOfferMarginStatus,
   proposeRemunerationFromCost,
   resolveOfferRateByType,
   deriveWorkingRateFromCalendar,
@@ -64,6 +65,64 @@ import {
   PRESERVED_CLIENT_PLACEHOLDERS,
   wordXmlPlainText
 } from "../../modules/clientOffer/transform.js";
+
+test("MARGIN1. Calendar: ricavo mensile e margine sopra soglia", function () {
+  const s = createDefaultClientOfferState();
+  s.remuneration.rateType = "calendar";
+  s.remuneration.offerDailyRate = 600;
+  s.remuneration.pocketMode = "na";
+  const result = computeOfferMarginStatus(s, {
+    totaleCosto: 13000,
+    marginePerc: 30
+  });
+  assert.equal(result.revenue, 18000);
+  assert.equal(result.marginAmount, 5000);
+  assert.ok(Math.abs(result.marginPercent - 38.461538) < 0.001);
+  assert.equal(result.meetsTarget, true);
+});
+
+test("MARGIN2. Working + pocket calendar + logistica separata", function () {
+  const s = createDefaultClientOfferState();
+  s.remuneration.rateType = "working";
+  s.remuneration.offerDailyRate = 500;
+  s.remuneration.workingDays = 26;
+  s.remuneration.dailyPocketMoney = 50;
+  s.remuneration.pocketMode = "separate";
+  s.accommodation.mode = "our_lump";
+  s.accommodation.lumpSum = 1000;
+  s.transportation.mode = "our_lump";
+  s.transportation.lumpSum = 500;
+  const result = computeOfferMarginStatus(s, {
+    totaleCosto: 14000,
+    marginePerc: 30
+  });
+  assert.equal(result.baseRevenue, 13000);
+  assert.equal(result.pocketRevenue, 1500);
+  assert.equal(result.logisticsRevenue, 1500);
+  assert.equal(result.revenue, 16000);
+  assert.equal(result.marginAmount, 2000);
+  assert.equal(result.meetsTarget, false);
+});
+
+test("MARGIN3. Combined lump sum non viene contato due volte", function () {
+  const s = createDefaultClientOfferState();
+  s.remuneration.rateType = "lumpSum";
+  s.remuneration.monthlyLumpSumRate = 15000;
+  s.remuneration.pocketMode = "na";
+  s.logistics.combinedLumpSum = true;
+  s.logistics.combinedLumpSumAmount = 2000;
+  s.accommodation.mode = "our_lump";
+  s.accommodation.lumpSum = 1000;
+  s.transportation.mode = "our_lump";
+  s.transportation.lumpSum = 1000;
+  const result = computeOfferMarginStatus(s, {
+    totaleCosto: 15000,
+    marginePerc: 10
+  });
+  assert.equal(result.revenue, 17000);
+  assert.equal(result.logisticsRevenue, 2000);
+  assert.equal(result.meetsTarget, true);
+});
 import {
   cleanupEmptyOptionalParagraphs,
   missingPlaceholdersInXml,

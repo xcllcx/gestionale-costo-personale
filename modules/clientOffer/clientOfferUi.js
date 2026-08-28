@@ -29,7 +29,8 @@ import {
   migrateLegacyProposalNaming,
   applyNormalizedRotation,
   validateOfferForWord,
-  applyResolvedOfferRate
+  applyResolvedOfferRate,
+  computeOfferMarginStatus
 } from "./transform.js";
 import {
   generateClientOfferDocx,
@@ -838,7 +839,53 @@ function refreshSummary() {
     const el = $(id);
     if (el) el.textContent = map[id];
   });
+  refreshMarginIndicator();
   refreshValidationSummary();
+}
+
+function refreshMarginIndicator() {
+  const el = $("coMarginIndicator");
+  if (!el) return;
+  const result = computeOfferMarginStatus(
+    state(),
+    appStateRef && appStateRef.calculation
+  );
+  el.classList.remove("is-positive", "is-negative", "is-neutral");
+
+  if (!result.available) {
+    el.classList.add("is-neutral");
+    el.innerHTML = result.reason === "missing-rate"
+      ? "<strong>Margine non disponibile.</strong><span>Inserisci un rate valido nell’offerta.</span>"
+      : "<strong>Margine non disponibile.</strong><span>Esegui prima il Calcolo costo personale.</span>";
+    return;
+  }
+
+  const positive = result.meetsTarget;
+  const symbol = positive ? "≥" : "<";
+  el.classList.add(positive ? "is-positive" : "is-negative");
+  el.innerHTML =
+    "<strong>" + (positive ? "✓ " : "⚠ ") + symbol + " " +
+    formatPercentIt(result.threshold) + " — Margine " +
+    formatMoneyIt(result.marginAmount) + " (" +
+    formatPercentIt(result.marginPercent) + ")</strong>" +
+    "<span>Ricavo mensile " + formatMoneyIt(result.revenue) +
+    " − costo tecnico " + formatMoneyIt(result.cost) + "</span>";
+}
+
+function formatMoneyIt(value) {
+  return new Intl.NumberFormat("it-IT", {
+    style: "currency",
+    currency: "EUR",
+    minimumFractionDigits: 0,
+    maximumFractionDigits: 2
+  }).format(Number(value) || 0);
+}
+
+function formatPercentIt(value) {
+  return new Intl.NumberFormat("it-IT", {
+    minimumFractionDigits: 0,
+    maximumFractionDigits: 1
+  }).format(Number(value) || 0) + "%";
 }
 
 function refreshValidationSummary() {

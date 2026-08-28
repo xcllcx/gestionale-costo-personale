@@ -1241,9 +1241,57 @@ fieldset.field-group legend {
   border-left: 4px solid #1f5f91;
 }
 
+.co-margin-indicator {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  margin-top: 1rem;
+  padding: 0.8rem 1rem;
+  border: 1px solid transparent;
+  border-radius: 10px;
+  font-size: 0.9rem;
+}
+
+.co-margin-indicator strong {
+  font-size: 0.95rem;
+}
+
+.co-margin-indicator span {
+  text-align: right;
+  opacity: 0.88;
+}
+
+.co-margin-indicator.is-positive {
+  border-color: #83c89c;
+  background: #eaf8ef;
+  color: #1e6739;
+}
+
+.co-margin-indicator.is-negative {
+  border-color: #e2a0a0;
+  background: #fff0f0;
+  color: #9a2929;
+}
+
+.co-margin-indicator.is-neutral {
+  border-color: #bdcad8;
+  background: #f4f7fa;
+  color: #526375;
+}
+
 @media (max-width: 760px) {
   .co-validation-summary ul {
     columns: 1;
+  }
+
+  .co-margin-indicator {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+  .co-margin-indicator span {
+    text-align: left;
   }
 }
 

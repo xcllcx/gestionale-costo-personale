@@ -204,6 +204,86 @@ export function computeOfferDailyRate(selectedClientRate, dailyPocketMoney) {
   return rate;
 }
 
+/**
+ * Confronta il ricavo mensile dell'offerta con il costo totale del tecnico.
+ * Usa la stessa logica commerciale del calcolo principale: margine su costo.
+ * @param {object} offerState
+ * @param {object|null} calculation
+ * @returns {object}
+ */
+export function computeOfferMarginStatus(offerState, calculation) {
+  const s = offerState || {};
+  const rem = s.remuneration || {};
+  const cost = Number(calculation && calculation.totaleCosto);
+  const thresholdRaw = Number(calculation && calculation.marginePerc);
+  const threshold = Number.isFinite(thresholdRaw) && thresholdRaw >= 0
+    ? thresholdRaw
+    : 30;
+
+  if (!Number.isFinite(cost) || cost <= 0) {
+    return { available: false, reason: "missing-cost", threshold };
+  }
+
+  const resolved = resolveOfferRateByType(rem);
+  let revenue = 0;
+  let baseRevenue = 0;
+  if (resolved.kind === "monthly") {
+    baseRevenue = Number(resolved.amount);
+  } else {
+    const daily = Number(
+      rem.offerDailyRate != null ? rem.offerDailyRate : resolved.amount
+    );
+    const days = resolved.rateType === "working"
+      ? (Number(rem.workingDays) > 0 ? Number(rem.workingDays) : DEFAULT_WORKING_DAYS)
+      : (Number(rem.calendarDays) > 0 ? Number(rem.calendarDays) : DEFAULT_CALENDAR_DAYS);
+    baseRevenue = daily * days;
+  }
+  if (!Number.isFinite(baseRevenue) || baseRevenue <= 0) {
+    return { available: false, reason: "missing-rate", threshold, cost };
+  }
+  revenue += baseRevenue;
+
+  let pocketRevenue = 0;
+  if (rem.pocketMode === "separate") {
+    const dailyPocket = Number(rem.dailyPocketMoney) > 0
+      ? Number(rem.dailyPocketMoney)
+      : computeDailyPocketMoney(rem.monthlyPocketMoney);
+    pocketRevenue = dailyPocket * POCKET_CALENDAR_DAYS;
+    revenue += pocketRevenue;
+  }
+
+  const logistics = s.logistics || {};
+  const accommodation = s.accommodation || {};
+  const transportation = s.transportation || {};
+  let logisticsRevenue = 0;
+  if (logistics.combinedLumpSum) {
+    logisticsRevenue = Number(logistics.combinedLumpSumAmount) || 0;
+  } else {
+    if (accommodation.mode === "our_lump") {
+      logisticsRevenue += Number(accommodation.lumpSum) || 0;
+    }
+    if (transportation.mode === "our_lump") {
+      logisticsRevenue += Number(transportation.lumpSum) || 0;
+    }
+  }
+  revenue += logisticsRevenue;
+
+  const marginAmount = revenue - cost;
+  const marginPercent = (marginAmount / cost) * 100;
+  return {
+    available: true,
+    revenue,
+    cost,
+    marginAmount,
+    marginPercent,
+    threshold,
+    meetsTarget: marginPercent >= threshold,
+    baseRevenue,
+    pocketRevenue,
+    logisticsRevenue
+  };
+}
+
 export function proposeRemunerationFromCost(input) {
   const monthly = Number(input.monthlyPocketMoney) || 0;
   const daily = computeDailyPocketMoney(monthly);
