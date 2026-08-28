@@ -31,7 +31,7 @@ import {
   validateOfferForWord,
   applyResolvedOfferRate,
   computeOfferMarginStatus
-} from "./transform.js";
+} from "./transform.js?v=rev04-margin-fix-20260828";
 import {
   generateClientOfferDocx,
   downloadOfferBlob,

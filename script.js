@@ -3597,7 +3597,7 @@ function registerRev03Modules() {
     });
 
   // Cache-bust: evita UI/state JS obsoleti in cache browser dopo refactor
-  import("./modules/clientOffer/index.js?v=co-template-b-20260731")
+  import("./modules/clientOffer/index.js?v=rev04-margin-fix-20260828")
     .then(function (mod) {
       if (mod && typeof mod.refreshClientOfferView === "function") {
         window.__refreshClientOffer = mod.refreshClientOfferView;

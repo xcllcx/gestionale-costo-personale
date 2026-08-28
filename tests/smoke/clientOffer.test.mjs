@@ -123,6 +123,24 @@ test("MARGIN3. Combined lump sum non viene contato due volte", function () {
   assert.equal(result.logisticsRevenue, 2000);
   assert.equal(result.meetsTarget, true);
 });
+
+test("MARGIN4. asset margin versionati per evitare moduli obsoleti in cache", function () {
+  const html = fs.readFileSync(path.join(root, "index.html"), "utf8");
+  const script = fs.readFileSync(path.join(root, "script.js"), "utf8");
+  const entry = fs.readFileSync(
+    path.join(root, "modules/clientOffer/index.js"),
+    "utf8"
+  );
+  const ui = fs.readFileSync(
+    path.join(root, "modules/clientOffer/clientOfferUi.js"),
+    "utf8"
+  );
+  const version = "rev04-margin-fix-20260828";
+  assert.match(html, new RegExp("script\\.js\\?v=" + version));
+  assert.match(script, new RegExp("clientOffer/index\\.js\\?v=" + version));
+  assert.match(entry, new RegExp("clientOfferUi\\.js\\?v=" + version));
+  assert.match(ui, new RegExp("transform\\.js\\?v=" + version));
+});
 import {
   cleanupEmptyOptionalParagraphs,
   missingPlaceholdersInXml,
